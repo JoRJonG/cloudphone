@@ -57,24 +57,22 @@ export default function StreamViewer({ selectedDevice }) {
       
       <div className="iframe-container">
         {iframeUrl ? (
-          <div className="w-full h-full flex items-center justify-center p-4">
-            {/* หน้าจอแอนดรอยด์เพียวๆ - อยู่กึ่งกลางพื้นที่ทำงาน */}
-            <div className="bg-black relative overflow-hidden shadow-2xl" 
-                 style={{ 
-                   width: isLandscape ? '1156px' : '360px', 
-                   height: isLandscape ? '850px' : '640px' /* ปรับความสูงให้พอดีแค่หน้าจอ Android */
-                 }}>
+          <div className="w-full h-full flex items-center justify-center p-2">
+            {/* ปรับให้เป็น Responsive และใช้ class ที่กำหนดไว้ใน CSS */}
+            <div className={`device-frame ${isLandscape ? 'landscape' : 'portrait'} relative overflow-hidden`}>
               <iframe 
                 key={selectedDevice.id}
                 src={iframeUrl} 
                 title="ws-scrcpy stream"
                 allow="fullscreen"
-                className="absolute w-full h-full border-none"
+                className="absolute border-none"
                 style={{ 
-                  width: '115%', /* ขยายเพื่อซ่อน sidebar */
-                  height: isLandscape ? '100%' : '185%', /* ขยายเพื่อดันส่วนหัว */
-                  marginTop: isLandscape ? '0' : '-52%', /* ดันส่วนหัวสีเทาขึ้นไปซ่อน */
-                  marginLeft: '-8%' /* ดัน sidebar ขวาออกไป */
+                  /* ปรับขนาด iframe ให้ครอปเอาเฉพาะหน้าจอแอนดรอยด์ออกมาแสดงผลแบบกึ่งกลางพอดี */
+                  width: isLandscape ? '110%' : '126%', 
+                  height: isLandscape ? '100%' : '140%', 
+                  top: isLandscape ? '0' : '-20%', 
+                  left: isLandscape ? '-5%' : '-13%',
+                  background: 'transparent'
                 }}
               />
             </div>

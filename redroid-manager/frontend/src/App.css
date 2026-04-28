@@ -355,51 +355,35 @@ input {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 30px;
-  background: radial-gradient(circle at center, #151518 0%, #050505 100%);
+  padding: 20px;
+  /* ลบพื้นหลังสีดำเข้มออก เปลี่ยนเป็นโทนที่นุ่มนวลขึ้น */
+  background: var(--bg-color);
   overflow: hidden;
 }
 
 /* Device Frame - ทำให้ดูเหมือนมือถือจริง */
 .device-frame {
   position: relative;
-  background: #000;
-  border-radius: 24px;
-  padding: 8px;
-  box-shadow: 
-    0 30px 60px -12px rgba(0, 0, 0, 0.5),
-    0 18px 36px -18px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(255, 255, 255, 0.05);
+  background: transparent;
   transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 4px solid #1a1a1e;
-  overflow: hidden; /* ป้องกันเนื้อหาแลบออกนอกกรอบ */
-}
-
-.device-frame::after {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  border-radius: 20px;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
-  pointer-events: none;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .device-frame.portrait {
-  width: 360px;
-  height: 760px;
-  max-height: 90vh;
+  width: 100%;
+  max-width: 420px; /* เพิ่มความกว้างขึ้นตามคำขอ */
+  aspect-ratio: 9 / 16;
+  max-height: calc(100vh - 120px);
 }
 
 .device-frame.landscape {
-  width: 1156px;
-  height: 850px;
-  max-width: 95vw;
-}
-
-.device-frame.landscape iframe {
-  width: 108%; /* ปรับความกว้างเพื่อซ่อน sidebar ในโหมดแนวนอน */
-  height: 100%;
-  margin-left: 0;
+  width: 100%;
+  max-width: 1100px;
+  aspect-ratio: 16 / 9;
+  max-height: calc(100vh - 120px);
 }
 
 .device-frame iframe {
