@@ -2,24 +2,32 @@ import { Monitor, Wifi } from 'lucide-react';
 
 export default function StreamViewer({ selectedDevice }) {
   const getIframeUrl = () => {
-    const host = window.location.hostname || 'localhost';
-
-    // ตรวจสอบทุก falsy case: null, undefined, '', 'null', 'undefined'
-    // เพื่อป้องกัน ws-scrcpy สร้าง new URL(":5555") → TypeError: Invalid URL
-    const ip = selectedDevice?.ip;
-    const isValidIp =
-      ip &&                          // ไม่ใช่ null/undefined/false
-      typeof ip === 'string' &&      // เป็น string จริงๆ
-      ip.trim() !== '' &&            // ไม่ใช่ string ว่าง
-      ip.trim() !== 'null' &&        // ป้องกัน backend ส่ง string "null"
-      ip.trim() !== 'undefined';     // ป้องกัน string "undefined"
-
-    if (selectedDevice && isValidIp) {
-      // ใช้ format มาตรฐานของ ws-scrcpy — hostname สร้าง WebSocket URL เอง
-      return `http://${host}:8001/#!action=stream&udid=${ip.trim()}:5555`;
+    // ดึง hostname และจัดการกรณี IPv6 (ต้องครอบด้วย [])
+    let host = window.location.hostname || 'localhost';
+    if (host.includes(':') && !host.startsWith('[')) {
+      host = `[${host}]`;
     }
 
-    return null; // ไม่โหลด iframe ถ้า ip ยังไม่พร้อม
+    const ip = selectedDevice?.ip;
+    const isValidIp =
+      ip &&
+      typeof ip === 'string' &&
+      ip.trim() !== '' &&
+      ip.trim() !== 'null' &&
+      ip.trim() !== 'undefined';
+
+    if (selectedDevice && isValidIp) {
+      const udid = `${ip.trim()}:5555`;
+      // เปลี่ยนจาก #! เป็น ? เพื่อให้ ws-scrcpy จัดการ query params ได้มาตรฐานขึ้น
+      // และลบการระบุ ws ออกเพื่อให้ library จัดการสร้าง WebSocket URL จาก query params เอง
+      const url = `http://${host}:8001/?action=stream&udid=${encodeURIComponent(udid)}&player=mse`;
+      
+      // ล็อก URL เพื่อช่วยตรวจสอบใน Console หากเกิดปัญหา
+      console.log('DEBUG: Streaming URL ->', url);
+      return url;
+    }
+
+    return null;
   };
 
   const iframeUrl = getIframeUrl();
