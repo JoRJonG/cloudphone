@@ -26,10 +26,10 @@ export default function StreamViewer({ selectedDevice }) {
       // สร้าง WebSocket URL ตามรูปแบบที่ผู้ใช้งานทดสอบแล้วว่าใช้งานได้จริง
       const wsUrl = `ws://${wsHost}:8001/?action=proxy-adb&remote=tcp:8886&udid=${udid}`;
       
-      // เพิ่มพารามิเตอร์ rotation ถ้าต้องการคุมจาก URL (แต่เราใช้ CSS rotate ที่ container แทนเพื่อความลื่นไหล)
-      const url = `http://${host}:8001/#!action=stream&udid=${encodeURIComponent(udid)}&player=mse&ws=${encodeURIComponent(wsUrl)}`;
+      // กลับไปใช้ #! สำหรับ main URL เพราะการใช้ ? ทำให้ ws-scrcpy ค้างที่หน้า Device Tracker
+      // เพิ่มพารามิเตอร์ซ่อน UI ส่วนเกินของ ws-scrcpy เพื่อให้แสดงผลเต็มจอที่สุด
+      const url = `http://${host}:8001/#!action=stream&udid=${encodeURIComponent(udid)}&player=mse&hide-navbar=true&hide-control=true&hide-settings=true&ws=${encodeURIComponent(wsUrl)}`;
       
-      console.log('DEBUG: Streaming URL ->', url);
       return url;
     }
 
