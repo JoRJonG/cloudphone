@@ -406,9 +406,6 @@ input {
   margin: 0;
   position: relative;
   z-index: 1;
-  /* ใช้ transform ขยายเฉพาะส่วนล่างขึ้นมา */
-  transform: scale(1.95);
-  transform-origin: center 75%; /* โฟกัสไปที่ส่วนล่างซึ่งเป็นหน้าจอ Android */
 }
 
 /* Toolbar ในหน้า Stream */
