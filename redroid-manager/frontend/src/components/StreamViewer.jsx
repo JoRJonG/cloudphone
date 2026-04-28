@@ -18,9 +18,14 @@ export default function StreamViewer({ selectedDevice }) {
 
     if (selectedDevice && isValidIp) {
       const udid = `${ip.trim()}:5555`;
-      // เปลี่ยนจาก #! เป็น ? เพื่อให้ ws-scrcpy จัดการ query params ได้มาตรฐานขึ้น
-      // และลบการระบุ ws ออกเพื่อให้ library จัดการสร้าง WebSocket URL จาก query params เอง
-      const url = `http://${host}:8001/?action=stream&udid=${encodeURIComponent(udid)}&player=mse`;
+      const wsHost = window.location.hostname || 'localhost';
+      
+      // สร้าง WebSocket URL ตามรูปแบบที่ผู้ใช้งานทดสอบแล้วว่าใช้งานได้จริง
+      // ใช้ action=proxy-adb และ remote=tcp:8886 เพื่อดึง stream
+      const wsUrl = `ws://${wsHost}:8001/?action=proxy-adb&remote=tcp:8886&udid=${udid}`;
+      
+      // กลับไปใช้ #! สำหรับ main URL เพราะการใช้ ? ทำให้ ws-scrcpy ค้างที่หน้า Device Tracker
+      const url = `http://${host}:8001/#!action=stream&udid=${encodeURIComponent(udid)}&player=mse&ws=${encodeURIComponent(wsUrl)}`;
       
       // ล็อก URL เพื่อช่วยตรวจสอบใน Console หากเกิดปัญหา
       console.log('DEBUG: Streaming URL ->', url);
