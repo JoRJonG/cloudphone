@@ -391,9 +391,10 @@ input {
 }
 
 .device-frame.landscape {
-  width: 760px;
-  height: 420px;
-  max-width: 90vw;
+  width: 800px;
+  height: 450px;
+  max-width: 95vw;
+  aspect-ratio: 16 / 9;
 }
 
 .device-frame.landscape iframe {
