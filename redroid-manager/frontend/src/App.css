@@ -364,31 +364,26 @@ input {
 /* Device Frame - ทำให้ดูเหมือนมือถือจริง */
 .device-frame {
   position: relative;
-  background: #000; /* กลับมาใช้พื้นหลังดำข้างในกรอบเพื่อให้ดูเหมือนหน้าจอดับถ้าไม่มีภาพ */
-  border-radius: 32px; /* โค้งมนแบบมือถือสมัยใหม่ */
-  border: 8px solid #1a1a1e; /* กรอบหนาขึ้นเล็กน้อยให้ดูมีมิติ */
-  box-shadow: 
-    0 20px 50px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(255, 255, 255, 0.05);
-  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow: hidden;
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 
 .device-frame.portrait {
-  width: 320px; /* ปรับขนาดให้พอดีสัดส่วนมาตรฐาน */
-  height: 640px;
+  width: 100%;
+  height: 100%;
+  max-width: 500px; /* จำกัดความกว้างเล็กน้อยเพื่อไม่ให้ภาพยืดเกินไปในจอใหญ่ */
   aspect-ratio: 9 / 18;
-  max-height: 85vh;
 }
 
 .device-frame.landscape {
   width: 100%;
-  max-width: 1100px;
+  height: 100%;
+  max-width: 1200px;
   aspect-ratio: 16 / 9;
-  max-height: calc(100vh - 120px);
 }
 
 .device-frame iframe {

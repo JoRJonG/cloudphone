@@ -67,13 +67,12 @@ export default function StreamViewer({ selectedDevice }) {
                 allow="fullscreen"
                 className="absolute border-none"
                 style={{ 
-                  /* ปรับแบบละเอียด: ดันส่วนหัวและด้านข้างของ ws-scrcpy ออกไปให้พ้นกรอบ */
-                  width: isLandscape ? '110%' : '145%', 
-                  height: isLandscape ? '110%' : '185%', 
-                  top: isLandscape ? '-5%' : '-55%', 
-                  left: isLandscape ? '-5%' : '-22.5%',
-                  background: '#000',
-                  /* เพิ่มความเนียนในการแสดงผล */
+                  /* ปรับให้แสดงผลแบบเพียวๆ ไม่มีกรอบ และซ่อนส่วนเกินอย่างแม่นยำ */
+                  width: isLandscape ? '100%' : '205%', 
+                  height: isLandscape ? '100%' : '260%', 
+                  top: isLandscape ? '0' : '-80%', 
+                  left: isLandscape ? '0' : '-5%', 
+                  background: 'transparent',
                   filter: 'contrast(1.02) brightness(1.02)'
                 }}
               />
