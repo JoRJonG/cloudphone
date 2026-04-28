@@ -67,12 +67,14 @@ export default function StreamViewer({ selectedDevice }) {
                 allow="fullscreen"
                 className="absolute border-none"
                 style={{ 
-                  /* ปรับขนาด iframe ให้ครอปเอาเฉพาะหน้าจอแอนดรอยด์ออกมาแสดงผลแบบกึ่งกลางพอดี */
-                  width: isLandscape ? '110%' : '126%', 
-                  height: isLandscape ? '100%' : '140%', 
-                  top: isLandscape ? '0' : '-20%', 
-                  left: isLandscape ? '-5%' : '-13%',
-                  background: 'transparent'
+                  /* ปรับแบบละเอียด: ดันส่วนหัวและด้านข้างของ ws-scrcpy ออกไปให้พ้นกรอบ */
+                  width: isLandscape ? '110%' : '145%', 
+                  height: isLandscape ? '110%' : '185%', 
+                  top: isLandscape ? '-5%' : '-55%', 
+                  left: isLandscape ? '-5%' : '-22.5%',
+                  background: '#000',
+                  /* เพิ่มความเนียนในการแสดงผล */
+                  filter: 'contrast(1.02) brightness(1.02)'
                 }}
               />
             </div>

@@ -364,7 +364,12 @@ input {
 /* Device Frame - ทำให้ดูเหมือนมือถือจริง */
 .device-frame {
   position: relative;
-  background: transparent;
+  background: #000; /* กลับมาใช้พื้นหลังดำข้างในกรอบเพื่อให้ดูเหมือนหน้าจอดับถ้าไม่มีภาพ */
+  border-radius: 32px; /* โค้งมนแบบมือถือสมัยใหม่ */
+  border: 8px solid #1a1a1e; /* กรอบหนาขึ้นเล็กน้อยให้ดูมีมิติ */
+  box-shadow: 
+    0 20px 50px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
   transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
   display: flex;
@@ -373,10 +378,10 @@ input {
 }
 
 .device-frame.portrait {
-  width: 100%;
-  max-width: 420px; /* เพิ่มความกว้างขึ้นตามคำขอ */
-  aspect-ratio: 9 / 16;
-  max-height: calc(100vh - 120px);
+  width: 320px; /* ปรับขนาดให้พอดีสัดส่วนมาตรฐาน */
+  height: 640px;
+  aspect-ratio: 9 / 18;
+  max-height: 85vh;
 }
 
 .device-frame.landscape {
