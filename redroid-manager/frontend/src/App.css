@@ -423,6 +423,29 @@ input {
   z-index: 5;
 }
 
+.external-controller {
+  min-width: 60px;
+  background: var(--surface-highlight);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  animation: fadeIn 0.3s ease-out;
+}
+
+.external-controller .toolbar-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  margin: 2px auto;
+  color: var(--text-main);
+  opacity: 0.8;
+}
+
+.external-controller .toolbar-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--secondary);
+}
+
 .toolbar-btn {
   background: transparent;
   border: 1px solid transparent;
