@@ -82,8 +82,8 @@ export default function StreamViewer({ selectedDevice }) {
               </button>
             </div>
 
-            {/* หน้าจอแอนดรอยด์เพียวๆ */}
-            <div className="bg-black shadow-2xl relative overflow-hidden border border-panel-border" 
+            {/* หน้าจอแอนดรอยด์เพียวๆ - ไร้ขอบ ไร้เงา ไร้กรอบ */}
+            <div className="bg-black relative overflow-hidden" 
                  style={{ 
                    width: isLandscape ? '1156px' : '360px', 
                    height: isLandscape ? '850px' : '760px'
