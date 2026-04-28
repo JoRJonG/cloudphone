@@ -27,8 +27,8 @@ export default function StreamViewer({ selectedDevice }) {
       const wsUrl = `ws://${wsHost}:8001/?action=proxy-adb&remote=tcp:8886&udid=${udid}`;
       
       // กลับไปใช้ #! สำหรับ main URL เพราะการใช้ ? ทำให้ ws-scrcpy ค้างที่หน้า Device Tracker
-      // เพิ่มพารามิเตอร์ซ่อน UI ส่วนเกินของ ws-scrcpy เพื่อให้แสดงผลเต็มจอที่สุด
-      const url = `http://${host}:8001/#!action=stream&udid=${encodeURIComponent(udid)}&player=mse&hide-navbar=true&hide-control=true&hide-settings=true&ws=${encodeURIComponent(wsUrl)}`;
+      // เพิ่มพารามิเตอร์ซ่อน UI ส่วนเกินของ ws-scrcpy ให้ครบถ้วนที่สุดเพื่อบังคับแสดงผลเต็มจอ
+      const url = `http://${host}:8001/#!action=stream&udid=${encodeURIComponent(udid)}&player=mse&hide-navbar=1&hide-control=1&hide-settings=1&hide-menu=true&hide-header=true&hide-list=true&ws=${encodeURIComponent(wsUrl)}`;
       
       return url;
     }
