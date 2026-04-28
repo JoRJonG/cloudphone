@@ -391,8 +391,8 @@ input {
 }
 
 .device-frame.landscape {
-  width: 800px;
-  height: 450px;
+  width: 1156px;
+  height: 650px;
   max-width: 95vw;
   aspect-ratio: 16 / 9;
 }
