@@ -57,8 +57,9 @@ export default function StreamViewer({ selectedDevice }) {
       
       <div className="iframe-container">
         {iframeUrl ? (
-          <div className="w-full h-full flex items-center justify-center overflow-hidden">
-            <div className="relative w-full h-full max-w-[500px] aspect-[9/19] overflow-hidden">
+          <div className="w-full h-full flex items-center justify-center">
+            {/* ใช้ขนาดพื้นที่แสดงผลที่คงที่เพื่อความแม่นยำสูงสุด */}
+            <div className="relative overflow-hidden" style={{ width: '360px', height: '720px', background: '#0a0a0c' }}>
               <iframe 
                 key={selectedDevice.id}
                 src={iframeUrl} 
@@ -66,11 +67,11 @@ export default function StreamViewer({ selectedDevice }) {
                 allow="fullscreen"
                 className="absolute border-none"
                 style={{ 
-                  /* ปรับใหม่: ขยายเฉพาะส่วนหน้าจอแอนดรอยด์ให้เต็ม และซ่อนส่วนสีดำด้านขวา */
-                  width: isLandscape ? '100%' : '320%', 
-                  height: isLandscape ? '100%' : '110%', 
-                  top: isLandscape ? '0' : '-5%', 
-                  left: isLandscape ? '0' : '-10%', 
+                  /* ใช้ขนาดพิกเซลคงที่เพื่อไม่ให้ภาพบิดเบี้ยว (AspectRatio) */
+                  width: '460px', 
+                  height: '1050px', 
+                  top: '-155px', 
+                  left: '-48px', 
                   background: 'transparent'
                 }}
               />
