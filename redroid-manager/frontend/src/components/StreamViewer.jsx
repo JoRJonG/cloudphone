@@ -57,19 +57,31 @@ export default function StreamViewer({ selectedDevice }) {
       
       <div className="iframe-container">
         {iframeUrl ? (
-          <div className="flex items-center gap-8">
-            {/* กรอบมือถือที่ปรับสัดส่วนใหม่ให้พอดีเป๊ะ */}
-            <div className={`device-frame ${isLandscape ? 'landscape' : 'portrait'}`}>
+          <div className="w-full h-full flex items-start gap-6 p-4 overflow-auto">
+            {/* หน้าจอแอนดรอยด์เพียวๆ ไม่มีกรอบ */}
+            <div className="flex-1 bg-black shadow-2xl relative overflow-hidden" 
+                 style={{ 
+                   width: isLandscape ? '1156px' : '360px', 
+                   height: isLandscape ? '850px' : '760px',
+                   minWidth: isLandscape ? '1156px' : '360px'
+                 }}>
               <iframe 
                 key={selectedDevice.id}
                 src={iframeUrl} 
                 title="ws-scrcpy stream"
                 allow="fullscreen"
+                className="absolute inset-0 w-full h-full border-none"
+                style={{ 
+                  width: '112%', 
+                  height: isLandscape ? '100%' : '145%', 
+                  marginTop: isLandscape ? '0' : '-22%',
+                  marginLeft: '0'
+                }}
               />
             </div>
 
-            {/* แถบควบคุมภายนอกที่ดูสะอาดตา */}
-            <div className="external-controller flex flex-col gap-4 p-4 bg-surface-highlight border border-panel-border rounded-xl">
+            {/* แถบควบคุมภายนอกยังคงอยู่เพื่อความสะดวก */}
+            <div className="external-controller flex flex-col gap-4 p-4 bg-surface-highlight border border-panel-border rounded-xl sticky top-0">
               <button className="toolbar-btn" title="Power">
                 <Smartphone size={20} className="text-danger" />
               </button>
