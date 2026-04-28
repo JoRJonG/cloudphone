@@ -4,8 +4,11 @@ export default function StreamViewer({ selectedDevice }) {
   const getIframeUrl = () => {
     const host = window.location.hostname || 'localhost';
     if (selectedDevice && selectedDevice.ip) {
-      // ส่ง udid เป็น ip:5555 ให้ ws-scrcpy ดึง stream โดยตรง
-      return `http://${host}:8001/#!action=stream&udid=${selectedDevice.ip}:5555`;
+      // ระบุ ws parameter เพิ่มเติมเพื่อให้ ws-scrcpy รู้ว่าจะต้องต่อ WebSocket ไปที่ไหน
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+      const wsUrl = encodeURIComponent(`${wsProtocol}://${host}:8001/`);
+      
+      return `http://${host}:8001/#!action=stream&udid=${selectedDevice.ip}:5555&ws=${wsUrl}`;
     }
     return null; // ไม่โหลด iframe ถ้ายังไม่ได้ select
   };
