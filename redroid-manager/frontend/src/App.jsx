@@ -143,11 +143,10 @@ function App() {
       showNotification(`NODE [${name}] DEPLOYED`);
       setShowAddForm(false);
       fetchDevices();
-      // หา device ที่เพิ่งสร้างใหม่แล้ว auto-connect หลัง 3 วินาที
+      // รอให้ polling ดึงข้อมูล device จริงก่อน แล้วค่อย connect
+      // ไม่ใช้ ip: '' เพราะจะทำให้ ws-scrcpy ได้ udid เป็น ":5555" → Invalid URL error
       if (data.id) setTimeout(() => {
         fetchDevices();
-        // สร้าง device stub เพื่อ connect ก่อน polling รอบถัดไป
-        connectAdb({ id: data.id, name, ip: '', port: parseInt(port) });
       }, 3000);
     } catch (err) {
       showNotification(`ERR: ${err.message}`);

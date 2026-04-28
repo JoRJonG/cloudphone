@@ -3,14 +3,15 @@ import { Monitor, Wifi } from 'lucide-react';
 export default function StreamViewer({ selectedDevice }) {
   const getIframeUrl = () => {
     const host = window.location.hostname || 'localhost';
-    if (selectedDevice && selectedDevice.ip) {
-      // ระบุ ws parameter เพิ่มเติมเพื่อให้ ws-scrcpy รู้ว่าจะต้องต่อ WebSocket ไปที่ไหน
-      const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-      const wsUrl = encodeURIComponent(`${wsProtocol}://${host}:8001/`);
-      
-      return `http://${host}:8001/#!action=stream&udid=${selectedDevice.ip}:5555&ws=${wsUrl}`;
+    // ต้องตรวจสอบว่า ip มีค่าจริงๆ (ไม่ใช่ string ว่าง)
+    // กรณีที่ connectAdb เรียกด้วย ip: '' จะทำให้ udid กลายเป็น ":5555"
+    // และ ws-scrcpy จะพยายาม new URL(":5555") → TypeError: Invalid URL
+    if (selectedDevice && selectedDevice.ip && selectedDevice.ip.trim() !== '') {
+      // ใช้ format มาตรฐานของ ws-scrcpy โดยไม่ส่ง ws= parameter
+      // เพราะ ws-scrcpy จะสร้าง WebSocket URL จาก hostname ของตัวเองอยู่แล้ว
+      return `http://${host}:8001/#!action=stream&udid=${selectedDevice.ip}:5555`;
     }
-    return null; // ไม่โหลด iframe ถ้ายังไม่ได้ select
+    return null; // ไม่โหลด iframe ถ้ายังไม่ได้ select หรือ ip ยังว่างอยู่
   };
 
   const iframeUrl = getIframeUrl();
