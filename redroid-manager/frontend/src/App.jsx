@@ -143,7 +143,12 @@ function App() {
       showNotification(`NODE [${name}] DEPLOYED`);
       setShowAddForm(false);
       fetchDevices();
-      if (data.id) setTimeout(() => connectAdb(data.id), 2000);
+      // หา device ที่เพิ่งสร้างใหม่แล้ว auto-connect หลัง 3 วินาที
+      if (data.id) setTimeout(() => {
+        fetchDevices();
+        // สร้าง device stub เพื่อ connect ก่อน polling รอบถัดไป
+        connectAdb({ id: data.id, name, ip: '', port: parseInt(port) });
+      }, 3000);
     } catch (err) {
       showNotification(`ERR: ${err.message}`);
     } finally {
@@ -170,14 +175,21 @@ function App() {
     }
   };
 
-  const connectAdb = useCallback(async (id) => {
+  // รับ device object ทั้งก้อนเพื่อ auto-select หลัง connect สำเร็จ
+  const connectAdb = useCallback(async (device) => {
     try {
       showNotification(`INITIATING_ADB_UPLINK...`);
-      await fetch(`/api/devices/${id}/connect`, { 
+      const res = await fetch(`/api/devices/${device.id}/connect`, { 
         method: 'POST',
         credentials: 'include'
       });
-      showNotification(`ADB_UPLINK_ESTABLISHED`);
+      if (res.ok) {
+        showNotification(`ADB_UPLINK_ESTABLISHED`);
+        // auto-select device เพื่อแสดงหน้าจอทันที
+        setSelectedDevice(device);
+      } else {
+        showNotification(`ERR_ADB_UPLINK_FAILED`);
+      }
     } catch {
       showNotification(`ERR_ADB_UPLINK_FAILED`);
     }

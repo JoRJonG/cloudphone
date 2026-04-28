@@ -1,13 +1,16 @@
-import { Monitor } from 'lucide-react';
+import { Monitor, Wifi } from 'lucide-react';
 
 export default function StreamViewer({ selectedDevice }) {
   const getIframeUrl = () => {
     const host = window.location.hostname || 'localhost';
     if (selectedDevice && selectedDevice.ip) {
+      // ส่ง udid เป็น ip:5555 ให้ ws-scrcpy ดึง stream โดยตรง
       return `http://${host}:8001/#!action=stream&udid=${selectedDevice.ip}:5555`;
     }
-    return `http://${host}:8001/`;
+    return null; // ไม่โหลด iframe ถ้ายังไม่ได้ select
   };
+
+  const iframeUrl = getIframeUrl();
 
   return (
     <div className="main-content">
@@ -27,11 +30,28 @@ export default function StreamViewer({ selectedDevice }) {
       </div>
       
       <div className="iframe-container">
-        <iframe 
-          src={getIframeUrl()} 
-          title="ws-scrcpy stream"
-          allow="fullscreen"
-        ></iframe>
+        {iframeUrl ? (
+          // key={selectedDevice.id} ทำให้ React สร้าง iframe ใหม่ทุกครั้งที่เปลี่ยน device
+          <iframe 
+            key={selectedDevice.id}
+            src={iframeUrl} 
+            title="ws-scrcpy stream"
+            allow="fullscreen"
+          />
+        ) : (
+          // แสดง placeholder เมื่อยังไม่ได้เลือก device
+          <div className="stream-placeholder">
+            <div className="placeholder-icon">
+              <Wifi size={48} className="text-neon" style={{ opacity: 0.3 }} />
+            </div>
+            <p className="mono text-muted" style={{ fontSize: '0.8rem', letterSpacing: '2px', marginTop: '16px' }}>
+              SELECT_NODE → CONNECT → VIEW_STREAM
+            </p>
+            <p className="mono" style={{ fontSize: '0.7rem', color: '#444', marginTop: '8px' }}>
+              กดปุ่ม CONNECT ที่ device เพื่อเริ่ม stream
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

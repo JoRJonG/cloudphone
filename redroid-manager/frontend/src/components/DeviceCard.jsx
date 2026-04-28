@@ -26,7 +26,7 @@ const DeviceCard = memo(({ device, isActive, onSelect, onConnectAdb, onDelete })
       <div className="device-actions">
         <button 
           className="btn-outline flex-1" 
-          onClick={(e) => { e.stopPropagation(); onConnectAdb(device.id); }}
+          onClick={(e) => { e.stopPropagation(); onConnectAdb(device); }}
         >
           <TerminalSquare size={14} /> CONNECT
         </button>

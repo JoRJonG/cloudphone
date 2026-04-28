@@ -337,35 +337,48 @@ def get_devices(db: Session = Depends(get_db), current_user: User = Depends(get_
     devices = []
     try:
         containers = client.containers.list(all=True)
+        
+        # รายชื่อ keyword ที่บ่งบอกว่าเป็น container ของระบบจัดการ ไม่ใช่ Android
+        SYSTEM_KEYWORDS = [
+            "redroid-manager", "ws-scrcpy", "mariadb", "mysql",
+            "nginx", "postgres", "redis", "mongo"
+        ]
+        
         for c in containers:
             if current_user.role != "admin" and c.name not in allowed_names:
                 continue
                 
             try:
-                image_name = c.attrs.get('Config', {}).get('Image', 'redroid')
-                is_redroid = False
-                if 'redroid' in c.name.lower() or 'redroid' in image_name.lower():
-                    is_redroid = True
+                image_name = c.attrs.get('Config', {}).get('Image', '')
+                
+                # ข้าม container ระบบ — เช็คทั้ง image name และ container name
+                is_system = any(kw in c.name.lower() for kw in SYSTEM_KEYWORDS)
+                is_system = is_system or any(kw in image_name.lower() for kw in ["ws-scrcpy", "mariadb", "nginx"])
+                if is_system:
+                    continue
 
-                if is_redroid:
-                    ports = c.ports
-                    adb_port = None
-                    if '5555/tcp' in ports and ports['5555/tcp']:
-                        adb_port = ports['5555/tcp'][0]['HostPort']
+                # เป็น Android container ถ้า image มีคำว่า redroid
+                if 'redroid' not in image_name.lower():
+                    continue
 
-                    container_ip = ""
-                    networks = c.attrs.get('NetworkSettings', {}).get('Networks', {})
-                    if networks:
-                        container_ip = list(networks.values())[0].get('IPAddress', '')
+                ports = c.ports
+                adb_port = None
+                if '5555/tcp' in ports and ports['5555/tcp']:
+                    adb_port = ports['5555/tcp'][0]['HostPort']
 
-                    devices.append({
-                        "id": c.id[:12],
-                        "name": c.name,
-                        "status": c.status,
-                        "port": adb_port,
-                        "ip": container_ip,
-                        "image": image_name
-                    })
+                container_ip = ""
+                networks = c.attrs.get('NetworkSettings', {}).get('Networks', {})
+                if networks:
+                    container_ip = list(networks.values())[0].get('IPAddress', '')
+
+                devices.append({
+                    "id": c.id[:12],
+                    "name": c.name,
+                    "status": c.status,
+                    "port": adb_port,
+                    "ip": container_ip,
+                    "image": image_name
+                })
             except Exception:
                 continue
 
@@ -386,17 +399,13 @@ def create_device(device: DeviceCreate, current_user: User = Depends(require_adm
 
         container = client.containers.run(
             "redroid/redroid:11.0.0-latest",
-            command=[
-                "androidboot.redroid_width=720",
-                "androidboot.redroid_height=1280",
-                "androidboot.redroid_dpi=320",
-                "androidboot.redroid_gpu_mode=guest"
-            ],
             name=device.name,
             ports={'5555/tcp': device.port},
             network="redroid-manager_redroid_net",
             privileged=True,
-            detach=True
+            detach=True,
+            tty=True,
+            stdin_open=True
         )
         return {"status": "success", "message": f"Device '{device.name}' created", "id": container.id}
     except Exception as e:
@@ -410,6 +419,11 @@ def delete_device(device_id: str, current_user: User = Depends(require_admin)):
 
     try:
         container = client.containers.get(device_id)
+        
+        # ป้องกันการลบ container หลักของระบบ
+        if "redroid-manager" in container.name or "ws-scrcpy" in container.name or "mariadb" in container.name:
+            raise HTTPException(status_code=403, detail="SYSTEM_CONTAINER: ไม่สามารถลบ container ของระบบได้")
+            
         container.stop()
         container.remove()
         return {"status": "success", "message": f"Device {device_id} deleted"}
