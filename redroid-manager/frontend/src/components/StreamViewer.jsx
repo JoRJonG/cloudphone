@@ -55,49 +55,26 @@ export default function StreamViewer({ selectedDevice }) {
         </div>
       </div>
       
-      <div className="iframe-container flex-col items-center">
+      <div className="iframe-container">
         {iframeUrl ? (
-          <div className="w-full h-full flex flex-col items-center p-4 gap-4 overflow-auto">
-            {/* แถบควบคุมย้ายมาไว้ด้านบนเป็นแนวนอน เพื่อไม่ให้บังหน้าจอ */}
-            <div className="external-controller flex flex-row gap-6 p-3 bg-surface-highlight border border-panel-border rounded-xl z-10 shadow-xl">
-              <button className="toolbar-btn" title="Power">
-                <Smartphone size={20} className="text-danger" />
-              </button>
-              <div className="w-px bg-panel-border mx-2" />
-              <button className="toolbar-btn" title="Back">
-                <RotateCcw size={20} />
-              </button>
-              <button className="toolbar-btn" title="Home">
-                <div className="w-4 h-4 border-2 border-current rounded-full" />
-              </button>
-              <button className="toolbar-btn" title="Recent Tasks">
-                <div className="w-4 h-4 border-2 border-current rounded-sm" />
-              </button>
-              <div className="w-px bg-panel-border mx-2" />
-              <button className="toolbar-btn" title="Rotate" onClick={() => setIsLandscape(!isLandscape)}>
-                <RotateCw size={20} />
-              </button>
-              <button className="toolbar-btn" title="Full Screen">
-                <Maximize size={20} />
-              </button>
-            </div>
-
-            {/* หน้าจอแอนดรอยด์เพียวๆ - ไร้ขอบ ไร้เงา ไร้กรอบ */}
-            <div className="bg-black relative overflow-hidden" 
+          <div className="w-full h-full flex items-center justify-center p-4">
+            {/* หน้าจอแอนดรอยด์เพียวๆ - อยู่กึ่งกลางพื้นที่ทำงาน */}
+            <div className="bg-black relative overflow-hidden shadow-2xl" 
                  style={{ 
                    width: isLandscape ? '1156px' : '360px', 
-                   height: isLandscape ? '850px' : '760px'
+                   height: isLandscape ? '850px' : '640px' /* ปรับความสูงให้พอดีแค่หน้าจอ Android */
                  }}>
               <iframe 
                 key={selectedDevice.id}
                 src={iframeUrl} 
                 title="ws-scrcpy stream"
                 allow="fullscreen"
-                className="w-full h-full border-none"
+                className="absolute w-full h-full border-none"
                 style={{ 
-                  width: '100%', 
-                  height: '100%',
-                  marginTop: '0'
+                  width: '115%', /* ขยายเพื่อซ่อน sidebar */
+                  height: isLandscape ? '100%' : '185%', /* ขยายเพื่อดันส่วนหัว */
+                  marginTop: isLandscape ? '0' : '-52%', /* ดันส่วนหัวสีเทาขึ้นไปซ่อน */
+                  marginLeft: '-8%' /* ดัน sidebar ขวาออกไป */
                 }}
               />
             </div>
