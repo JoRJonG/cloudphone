@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+docker
+pydantic
+sqlalchemy
+passlib[bcrypt]
+pyjwt
+python-multipart

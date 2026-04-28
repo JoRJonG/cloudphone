@@ -1,0 +1,816 @@
+/* Noise Texture */
+.noise-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+.app-container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* Typography and Inputs */
+input {
+  font-family: var(--font-mono);
+}
+
+/* Login Screen */
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  width: 100vw;
+  background: radial-gradient(circle at center, #111 0%, var(--bg-color) 100%);
+}
+
+.login-box {
+  background: rgba(10, 10, 12, 0.9);
+  border: 1px solid var(--panel-border);
+  padding: 40px;
+  width: 100%;
+  max-width: 420px;
+  position: relative;
+  backdrop-filter: blur(10px);
+}
+
+/* Corner Accents */
+.glitch-box::before, .glitch-box::after {
+  content: '';
+  position: absolute;
+  width: 15px; height: 15px;
+  border: 2px solid var(--primary);
+  opacity: 0.7;
+}
+.glitch-box::before { top: -2px; left: -2px; border-right: none; border-bottom: none; }
+.glitch-box::after { bottom: -2px; right: -2px; border-left: none; border-top: none; }
+
+.login-header {
+  text-align: center;
+  margin-bottom: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.login-header h2 {
+  font-size: 2rem;
+  letter-spacing: 0.1em;
+  margin: 10px 0 5px;
+}
+
+.sys-status {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--danger);
+  letter-spacing: 2px;
+  animation: blink 2s infinite;
+}
+
+.input-group {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.input-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+}
+
+.input-group input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--panel-border);
+  color: var(--primary);
+  padding: 12px 12px 12px 42px;
+  outline: none;
+  transition: all 0.2s;
+  letter-spacing: 1px;
+}
+
+.input-group input:focus {
+  border-color: var(--primary);
+  background: rgba(0, 255, 157, 0.05);
+  box-shadow: inset 0 0 10px rgba(0, 255, 157, 0.1);
+}
+
+.input-group input::placeholder {
+  color: #333;
+  letter-spacing: 2px;
+}
+
+/* Glitch Button */
+.btn-glitch {
+  width: 100%;
+  padding: 14px;
+  background: transparent;
+  color: var(--primary);
+  border: 1px solid var(--primary);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 3px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s;
+}
+
+.btn-glitch:hover:not(:disabled) {
+  background: var(--primary);
+  color: var(--bg-color);
+  box-shadow: 0 0 20px var(--primary-glow);
+}
+
+.btn-glitch:disabled {
+  border-color: #333;
+  color: #555;
+  cursor: not-allowed;
+}
+
+.btn-glitch.small {
+  padding: 10px;
+  letter-spacing: 1px;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 320px;
+  background: var(--surface);
+  border-right: 1px solid var(--panel-border);
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+}
+
+.sidebar-header {
+  height: 60px;
+  padding: 0 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--panel-border);
+  background: var(--surface-highlight);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo h1 {
+  font-size: 1.2rem;
+  letter-spacing: 2px;
+  font-weight: 600;
+}
+
+.sidebar-controls {
+  padding: 20px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.btn-icon {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: 0.2s;
+}
+
+.btn-icon:hover {
+  color: white;
+}
+.btn-icon.danger:hover {
+  color: var(--danger);
+  filter: drop-shadow(0 0 5px var(--danger-glow));
+}
+
+.device-form-panel {
+  padding: 20px;
+  background: rgba(0, 255, 157, 0.02);
+  border-bottom: 1px solid var(--panel-border);
+  border-left: 2px solid var(--primary);
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.panel-header h3 {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--primary);
+  letter-spacing: 1px;
+}
+
+.device-list-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.list-header {
+  margin-bottom: 15px;
+}
+
+/* Device Card */
+.device-card {
+  background: var(--surface-highlight);
+  border: 1px solid var(--panel-border);
+  padding: 15px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+}
+
+.device-card:hover {
+  border-color: #333;
+}
+
+.device-card.active {
+  border-color: var(--secondary);
+  background: rgba(0, 240, 255, 0.05);
+}
+
+.device-card.active::before {
+  content: '';
+  position: absolute;
+  left: -1px; top: -1px; bottom: -1px;
+  width: 3px;
+  background: var(--secondary);
+  box-shadow: 0 0 10px var(--secondary);
+}
+
+.device-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.device-name {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: 1px;
+}
+
+.status-badge {
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+}
+
+.status-running {
+  color: var(--primary);
+}
+
+.pulse-neon {
+  animation: pulse 2s infinite;
+  color: var(--primary);
+}
+
+.device-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: #888;
+  margin-bottom: 15px;
+}
+
+.device-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--panel-border);
+  color: var(--text-main);
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: 0.2s;
+}
+
+.btn-outline:hover {
+  border-color: var(--secondary);
+  color: var(--secondary);
+  background: rgba(0, 240, 255, 0.05);
+}
+
+.btn-outline.danger:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: rgba(255, 0, 60, 0.05);
+}
+
+/* Main Content */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-color);
+  position: relative;
+}
+
+.topbar {
+  height: 60px;
+  border-bottom: 1px solid var(--panel-border);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  background: var(--surface);
+}
+
+.iframe-container {
+  flex: 1;
+  position: relative;
+}
+
+.iframe-container iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #000;
+}
+
+/* Notifications */
+.notification {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: var(--surface-highlight);
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  padding: 12px 20px;
+  font-size: 0.85rem;
+  box-shadow: 0 0 15px var(--primary-glow);
+  display: flex;
+  align-items: center;
+  z-index: 9999;
+  animation: slideUp 0.3s ease-out;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+  text-align: center;
+  opacity: 0.7;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes pulse {
+  0% { opacity: 1; filter: drop-shadow(0 0 2px var(--primary)); }
+  50% { opacity: 0.5; filter: none; }
+  100% { opacity: 1; filter: drop-shadow(0 0 2px var(--primary)); }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* ============================================================
+   USER MANAGEMENT MODAL
+   ============================================================ */
+
+/* Overlay พื้นหลังโปร่งแสง */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Panel หลักของ Modal */
+.modal-panel {
+  background: rgba(10, 10, 14, 0.97);
+  border: 1px solid var(--panel-border);
+  width: 760px;
+  max-width: 95vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.25s ease-out;
+  overflow: hidden;
+}
+
+/* Header ของ Modal */
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--panel-border);
+  background: var(--surface-highlight);
+  flex-shrink: 0;
+}
+
+.modal-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  letter-spacing: 2px;
+  color: var(--primary);
+}
+
+/* Controls bar ใต้ header */
+.modal-controls {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--panel-border);
+  flex-shrink: 0;
+}
+
+/* Form เปลี่ยน password ตัวเอง */
+.self-pw-form {
+  padding: 14px 20px;
+  background: rgba(0, 255, 157, 0.02);
+  border-bottom: 1px solid var(--panel-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.self-pw-fields {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.self-pw-fields input {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--panel-border);
+  color: var(--primary);
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  outline: none;
+  flex: 1;
+  min-width: 140px;
+}
+
+.self-pw-fields input:focus {
+  border-color: var(--primary);
+  background: rgba(0, 255, 157, 0.04);
+}
+
+/* Form label เล็กๆ */
+.form-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+/* Form สร้าง user ใหม่ */
+.create-user-form {
+  padding: 14px 20px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  border-bottom: 1px solid var(--panel-border);
+  background: rgba(0, 255, 157, 0.02);
+  border-left: 2px solid var(--primary);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.create-user-form input {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--panel-border);
+  color: var(--primary);
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  outline: none;
+  flex: 1;
+  min-width: 120px;
+}
+
+.create-user-form input:focus {
+  border-color: var(--primary);
+  background: rgba(0, 255, 157, 0.04);
+}
+
+/* Select สำหรับ Role */
+.role-select {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--panel-border);
+  color: var(--primary);
+  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  outline: none;
+  cursor: pointer;
+}
+
+.role-select option {
+  background: #0a0a0e;
+}
+
+/* Wrapper สำหรับ password input + eye toggle */
+.pw-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 120px;
+}
+
+.pw-input-wrap input {
+  flex: 1;
+  padding-right: 36px !important;
+}
+
+.pw-input-wrap .btn-icon {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 4px;
+}
+
+/* ============================================================
+   USER TABLE
+   ============================================================ */
+
+.user-table-wrap {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.user-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.user-table thead tr {
+  background: var(--surface-highlight);
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.user-table th {
+  padding: 10px 16px;
+  text-align: left;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  letter-spacing: 2px;
+  font-weight: 400;
+}
+
+.user-table tbody tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  transition: background 0.15s;
+}
+
+.user-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* user ที่ถูก disable จะแสดงแบบจาง */
+.user-table tbody tr.user-disabled {
+  opacity: 0.45;
+}
+
+.user-table td {
+  padding: 12px 16px;
+  vertical-align: middle;
+}
+
+/* ชื่อ user */
+.user-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-main);
+}
+
+/* Badge YOU */
+.self-badge {
+  font-size: 0.6rem;
+  padding: 1px 6px;
+  border: 1px solid var(--secondary);
+  color: var(--secondary);
+  letter-spacing: 1px;
+}
+
+/* Role Badge */
+.role-badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  padding: 3px 10px;
+  letter-spacing: 1.5px;
+  font-family: var(--font-mono);
+}
+
+.role-badge.admin {
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  background: rgba(0, 255, 157, 0.08);
+}
+
+.role-badge.viewer {
+  border: 1px solid #555;
+  color: #aaa;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Status dot */
+.status-dot {
+  font-size: 0.65rem;
+  letter-spacing: 1px;
+}
+
+.status-dot.active {
+  color: var(--primary);
+}
+
+.status-dot.inactive {
+  color: var(--danger);
+}
+
+/* Action row ในตาราง */
+.action-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.action-row .btn-icon {
+  padding: 5px;
+  border-radius: 0;
+}
+
+.action-row .btn-icon:hover {
+  color: var(--secondary);
+  background: rgba(0, 240, 255, 0.08);
+}
+
+.action-row .btn-icon.danger:hover {
+  color: var(--danger);
+  background: rgba(255, 0, 60, 0.08);
+}
+
+/* Inline password editor ในตาราง */
+.inline-pw-edit {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.inline-pw-edit .pw-input-wrap input {
+  padding: 4px 8px !important;
+  font-size: 0.75rem;
+  min-width: 100px;
+}
+
+/* ============================================================
+   DEVICE ASSIGNMENT PANEL
+   ============================================================ */
+.assignment-panel {
+  padding: 20px;
+  background: rgba(0, 240, 255, 0.03);
+  border-top: 1px solid var(--panel-border);
+  flex-shrink: 0;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.assignment-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  margin-bottom: 15px;
+  color: var(--secondary);
+  letter-spacing: 1px;
+}
+
+.assignment-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.assignment-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--panel-border);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.assignment-item:hover {
+  background: rgba(0, 240, 255, 0.05);
+  border-color: var(--secondary);
+}
+
+.assignment-item.assigned {
+  background: rgba(0, 240, 255, 0.1);
+  border-color: var(--secondary);
+  box-shadow: inset 0 0 10px rgba(0, 240, 255, 0.1);
+}
+
+.assign-checkbox {
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--secondary);
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.assign-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.assign-name {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.assignment-item.assigned .assign-name {
+  color: var(--secondary);
+}
+
+.btn-icon.active {
+  color: var(--secondary);
+  background: rgba(0, 240, 255, 0.1);
+}
