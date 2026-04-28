@@ -1,6 +1,9 @@
-import { Monitor, Wifi } from 'lucide-react';
+import { useState } from 'react';
+import { Monitor, Wifi, RotateCw, RotateCcw, Maximize, Smartphone } from 'lucide-react';
 
 export default function StreamViewer({ selectedDevice }) {
+  const [isLandscape, setIsLandscape] = useState(false);
+
   const getIframeUrl = () => {
     // ดึง hostname และจัดการกรณี IPv6 (ต้องครอบด้วย [])
     let host = window.location.hostname || 'localhost';
@@ -21,13 +24,11 @@ export default function StreamViewer({ selectedDevice }) {
       const wsHost = window.location.hostname || 'localhost';
       
       // สร้าง WebSocket URL ตามรูปแบบที่ผู้ใช้งานทดสอบแล้วว่าใช้งานได้จริง
-      // ใช้ action=proxy-adb และ remote=tcp:8886 เพื่อดึง stream
       const wsUrl = `ws://${wsHost}:8001/?action=proxy-adb&remote=tcp:8886&udid=${udid}`;
       
-      // กลับไปใช้ #! สำหรับ main URL เพราะการใช้ ? ทำให้ ws-scrcpy ค้างที่หน้า Device Tracker
+      // เพิ่มพารามิเตอร์ rotation ถ้าต้องการคุมจาก URL (แต่เราใช้ CSS rotate ที่ container แทนเพื่อความลื่นไหล)
       const url = `http://${host}:8001/#!action=stream&udid=${encodeURIComponent(udid)}&player=mse&ws=${encodeURIComponent(wsUrl)}`;
       
-      // ล็อก URL เพื่อช่วยตรวจสอบใน Console หากเกิดปัญหา
       console.log('DEBUG: Streaming URL ->', url);
       return url;
     }
@@ -55,16 +56,39 @@ export default function StreamViewer({ selectedDevice }) {
       </div>
       
       <div className="iframe-container">
+        {iframeUrl && (
+          <div className="stream-toolbar">
+            <button 
+              className={`toolbar-btn ${!isLandscape ? 'active' : ''}`} 
+              onClick={() => setIsLandscape(false)}
+              title="Portrait Mode"
+            >
+              <Smartphone size={18} />
+            </button>
+            <button 
+              className={`toolbar-btn ${isLandscape ? 'active' : ''}`} 
+              onClick={() => setIsLandscape(true)}
+              title="Landscape Mode"
+            >
+              <RotateCw size={18} />
+            </button>
+            <div style={{ width: '1px', background: 'var(--panel-border)', margin: '0 5px' }} />
+            <button className="toolbar-btn" title="Expand View">
+              <Maximize size={18} />
+            </button>
+          </div>
+        )}
+
         {iframeUrl ? (
-          // key={selectedDevice.id} ทำให้ React สร้าง iframe ใหม่ทุกครั้งที่เปลี่ยน device
-          <iframe 
-            key={selectedDevice.id}
-            src={iframeUrl} 
-            title="ws-scrcpy stream"
-            allow="fullscreen"
-          />
+          <div className={`device-frame ${isLandscape ? 'landscape' : 'portrait'}`}>
+            <iframe 
+              key={selectedDevice.id}
+              src={iframeUrl} 
+              title="ws-scrcpy stream"
+              allow="fullscreen"
+            />
+          </div>
         ) : (
-          // แสดง placeholder เมื่อยังไม่ได้เลือก device
           <div className="stream-placeholder">
             <div className="placeholder-icon">
               <Wifi size={48} className="text-neon" style={{ opacity: 0.3 }} />
