@@ -184,8 +184,29 @@ function App() {
       });
       if (res.ok) {
         showNotification(`ADB_UPLINK_ESTABLISHED`);
-        // auto-select device เพื่อแสดงหน้าจอทันที
-        setSelectedDevice(device);
+        // ดึง device list ล่าสุดจาก API เพื่อให้ได้ ip จริง
+        // ไม่ใช้ device object เดิม เพราะอาจมี ip เป็น null/'' ซึ่งทำให้
+        // ws-scrcpy สร้าง new URL(":5555") → TypeError: Invalid URL
+        try {
+          const devRes = await fetch('/api/devices', { credentials: 'include' });
+          if (devRes.ok) {
+            const devData = await devRes.json();
+            if (devData.status === 'success') {
+              setDevices(devData.data);
+              // หา device ที่อัปเดตแล้วเพื่อเอา ip จริง
+              const updatedDevice = devData.data.find(d => d.id === device.id);
+              if (updatedDevice?.ip) {
+                setSelectedDevice(updatedDevice);
+              } else {
+                // ยังไม่มี ip — รอ polling รอบถัดไปแทน
+                showNotification(`ADB_LINKED — AWAITING_IP...`);
+              }
+            }
+          }
+        } catch {
+          // fallback: ใช้ device เดิมแต่ StreamViewer จะ guard ip เองอยู่แล้ว
+          setSelectedDevice(device);
+        }
       } else {
         showNotification(`ERR_ADB_UPLINK_FAILED`);
       }
