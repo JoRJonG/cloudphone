@@ -385,9 +385,9 @@ input {
 }
 
 .device-frame.portrait {
-  width: 380px;
-  height: 780px;
-  max-height: 90%;
+  width: 360px;
+  height: 760px;
+  max-height: 90vh;
 }
 
 .device-frame.landscape {
@@ -397,13 +397,14 @@ input {
 }
 
 .device-frame iframe {
-  width: 100%;
+  width: 112%; /* ขยายเพื่อดัน sidebar ขวาออกไปให้พ้นกรอบ */
   height: 100%;
   border: none;
-  border-radius: 16px;
+  border-radius: 0;
   background: #000;
   display: block;
   margin: 0;
+  margin-left: 0; /* ชิดซ้ายเพื่อให้ sidebar ขวาตกขอบ */
   position: relative;
   z-index: 1;
 }

@@ -57,15 +57,40 @@ export default function StreamViewer({ selectedDevice }) {
       
       <div className="iframe-container">
         {iframeUrl ? (
-          <div className="w-full h-full flex items-center justify-center p-4">
-            <iframe 
-              key={selectedDevice.id}
-              src={iframeUrl} 
-              title="ws-scrcpy stream"
-              allow="fullscreen"
-              className="w-full h-full border-none"
-              style={{ minHeight: '80vh' }}
-            />
+          <div className="flex items-center gap-8">
+            {/* กรอบมือถือที่ปรับสัดส่วนใหม่ให้พอดีเป๊ะ */}
+            <div className={`device-frame ${isLandscape ? 'landscape' : 'portrait'}`}>
+              <iframe 
+                key={selectedDevice.id}
+                src={iframeUrl} 
+                title="ws-scrcpy stream"
+                allow="fullscreen"
+              />
+            </div>
+
+            {/* แถบควบคุมภายนอกที่ดูสะอาดตา */}
+            <div className="external-controller flex flex-col gap-4 p-4 bg-surface-highlight border border-panel-border rounded-xl">
+              <button className="toolbar-btn" title="Power">
+                <Smartphone size={20} className="text-danger" />
+              </button>
+              <div className="h-px bg-panel-border my-2" />
+              <button className="toolbar-btn" title="Back">
+                <RotateCcw size={20} />
+              </button>
+              <button className="toolbar-btn" title="Home">
+                <div className="w-4 h-4 border-2 border-current rounded-full" />
+              </button>
+              <button className="toolbar-btn" title="Recent Tasks">
+                <div className="w-4 h-4 border-2 border-current rounded-sm" />
+              </button>
+              <div className="h-px bg-panel-border my-2" />
+              <button className="toolbar-btn" title="Rotate" onClick={() => setIsLandscape(!isLandscape)}>
+                <RotateCw size={20} />
+              </button>
+              <button className="toolbar-btn" title="Full Screen">
+                <Maximize size={20} />
+              </button>
+            </div>
           </div>
         ) : (
           <div className="stream-placeholder">
