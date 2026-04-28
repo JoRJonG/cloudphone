@@ -397,14 +397,14 @@ input {
 }
 
 .device-frame iframe {
-  width: 100%; 
-  height: 145%; /* ปรับลดความสูงลงเพื่อให้พอดีขึ้น */
+  width: 115%; /* ขยายเพื่อดัน sidebar ขวาออกไป */
+  height: 180%; /* ขยายเพื่อดันส่วนหัวขึ้นไป */
   border: none;
   border-radius: 0;
   background: #000;
   display: block;
-  margin-top: -22%; /* ปรับการดันขึ้นให้พอดีกับส่วนหัว */
-  margin-left: 0;
+  margin-top: -52%; /* ดันส่วนหัวสีเทาขึ้นไปให้พ้น */
+  margin-left: -8%; /* ขยับซ้ายเพื่อให้หน้าจอ Android อยู่กึ่งกลางและซ่อน sidebar */
   position: relative;
   z-index: 1;
 }
