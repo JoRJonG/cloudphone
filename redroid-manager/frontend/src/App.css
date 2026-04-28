@@ -391,20 +391,26 @@ input {
 }
 
 .device-frame.landscape {
-  width: 80%;
-  height: 480px;
-  aspect-ratio: 16 / 9;
+  width: 760px;
+  height: 420px;
+  max-width: 90vw;
+}
+
+.device-frame.landscape iframe {
+  width: 108%; /* ปรับความกว้างเพื่อซ่อน sidebar ในโหมดแนวนอน */
+  height: 100%;
+  margin-left: 0;
 }
 
 .device-frame iframe {
-  width: 112%; /* ขยายเพื่อดัน sidebar ขวาออกไปให้พ้นกรอบ */
+  width: 112%; /* ขยายเพื่อดัน sidebar ขวาออกไปให้พ้นกรอบ (แนวตั้ง) */
   height: 100%;
   border: none;
   border-radius: 0;
   background: #000;
   display: block;
   margin: 0;
-  margin-left: 0; /* ชิดซ้ายเพื่อให้ sidebar ขวาตกขอบ */
+  margin-left: 0;
   position: relative;
   z-index: 1;
 }
