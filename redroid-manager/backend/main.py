@@ -394,6 +394,7 @@ def create_device(device: DeviceCreate, current_user: User = Depends(require_adm
             ],
             name=device.name,
             ports={'5555/tcp': device.port},
+            network="redroid-manager_redroid_net",
             privileged=True,
             detach=True
         )
