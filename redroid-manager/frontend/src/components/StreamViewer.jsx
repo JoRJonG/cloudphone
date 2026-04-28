@@ -55,37 +55,15 @@ export default function StreamViewer({ selectedDevice }) {
         </div>
       </div>
       
-      <div className="iframe-container">
+      <div className="iframe-container flex-col items-center">
         {iframeUrl ? (
-          <div className="w-full h-full flex items-start gap-6 p-4 overflow-auto">
-            {/* หน้าจอแอนดรอยด์เพียวๆ ไม่มีกรอบ */}
-            <div className="flex-1 bg-black shadow-2xl relative overflow-hidden" 
-                 style={{ 
-                   width: isLandscape ? '1156px' : '360px', 
-                   height: isLandscape ? '850px' : '760px',
-                   minWidth: isLandscape ? '1156px' : '360px'
-                 }}>
-              <iframe 
-                key={selectedDevice.id}
-                src={iframeUrl} 
-                title="ws-scrcpy stream"
-                allow="fullscreen"
-                className="absolute inset-0 w-full h-full border-none"
-                style={{ 
-                  width: '112%', 
-                  height: isLandscape ? '100%' : '145%', 
-                  marginTop: isLandscape ? '0' : '-22%',
-                  marginLeft: '0'
-                }}
-              />
-            </div>
-
-            {/* แถบควบคุมภายนอกยังคงอยู่เพื่อความสะดวก */}
-            <div className="external-controller flex flex-col gap-4 p-4 bg-surface-highlight border border-panel-border rounded-xl sticky top-0">
+          <div className="w-full h-full flex flex-col items-center p-4 gap-4 overflow-auto">
+            {/* แถบควบคุมย้ายมาไว้ด้านบนเป็นแนวนอน เพื่อไม่ให้บังหน้าจอ */}
+            <div className="external-controller flex flex-row gap-6 p-3 bg-surface-highlight border border-panel-border rounded-xl z-10 shadow-xl">
               <button className="toolbar-btn" title="Power">
                 <Smartphone size={20} className="text-danger" />
               </button>
-              <div className="h-px bg-panel-border my-2" />
+              <div className="w-px bg-panel-border mx-2" />
               <button className="toolbar-btn" title="Back">
                 <RotateCcw size={20} />
               </button>
@@ -95,13 +73,33 @@ export default function StreamViewer({ selectedDevice }) {
               <button className="toolbar-btn" title="Recent Tasks">
                 <div className="w-4 h-4 border-2 border-current rounded-sm" />
               </button>
-              <div className="h-px bg-panel-border my-2" />
+              <div className="w-px bg-panel-border mx-2" />
               <button className="toolbar-btn" title="Rotate" onClick={() => setIsLandscape(!isLandscape)}>
                 <RotateCw size={20} />
               </button>
               <button className="toolbar-btn" title="Full Screen">
                 <Maximize size={20} />
               </button>
+            </div>
+
+            {/* หน้าจอแอนดรอยด์เพียวๆ */}
+            <div className="bg-black shadow-2xl relative overflow-hidden border border-panel-border" 
+                 style={{ 
+                   width: isLandscape ? '1156px' : '360px', 
+                   height: isLandscape ? '850px' : '760px'
+                 }}>
+              <iframe 
+                key={selectedDevice.id}
+                src={iframeUrl} 
+                title="ws-scrcpy stream"
+                allow="fullscreen"
+                className="w-full h-full border-none"
+                style={{ 
+                  width: '100%', 
+                  height: '100%',
+                  marginTop: '0'
+                }}
+              />
             </div>
           </div>
         ) : (
