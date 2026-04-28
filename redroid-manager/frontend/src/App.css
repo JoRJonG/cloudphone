@@ -397,12 +397,16 @@ input {
 }
 
 .device-frame iframe {
-  width: 100%;
-  height: 100%;
+  width: 130%; /* ขยายความกว้างเล็กน้อยเพื่อซ่อน sidebar ด้านข้าง */
+  height: 185%; /* ขยายความสูงเพื่อดันส่วนหัวขึ้นไป */
   border: none;
-  border-radius: 16px;
+  border-radius: 0;
   background: #000;
-  display: block; /* ลดช่องว่างด้านล่างของ iframe */
+  display: block;
+  margin-top: -35%; /* ดันส่วนหัวสีเทาขึ้นไปซ่อน */
+  margin-left: -15%; /* ดัน sidebar ด้านข้างออกไป */
+  position: relative;
+  z-index: 1;
 }
 
 /* Toolbar ในหน้า Stream */

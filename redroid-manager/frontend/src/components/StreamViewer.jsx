@@ -56,37 +56,41 @@ export default function StreamViewer({ selectedDevice }) {
       </div>
       
       <div className="iframe-container">
-        {iframeUrl && (
-          <div className="stream-toolbar">
-            <button 
-              className={`toolbar-btn ${!isLandscape ? 'active' : ''}`} 
-              onClick={() => setIsLandscape(false)}
-              title="Portrait Mode"
-            >
-              <Smartphone size={18} />
-            </button>
-            <button 
-              className={`toolbar-btn ${isLandscape ? 'active' : ''}`} 
-              onClick={() => setIsLandscape(true)}
-              title="Landscape Mode"
-            >
-              <RotateCw size={18} />
-            </button>
-            <div style={{ width: '1px', background: 'var(--panel-border)', margin: '0 5px' }} />
-            <button className="toolbar-btn" title="Expand View">
-              <Maximize size={18} />
-            </button>
-          </div>
-        )}
-
         {iframeUrl ? (
-          <div className={`device-frame ${isLandscape ? 'landscape' : 'portrait'}`}>
-            <iframe 
-              key={selectedDevice.id}
-              src={iframeUrl} 
-              title="ws-scrcpy stream"
-              allow="fullscreen"
-            />
+          <div className="flex items-center gap-6">
+            {/* กรอบมือถือ */}
+            <div className={`device-frame ${isLandscape ? 'landscape' : 'portrait'}`}>
+              <iframe 
+                key={selectedDevice.id}
+                src={iframeUrl} 
+                title="ws-scrcpy stream"
+                allow="fullscreen"
+              />
+            </div>
+
+            {/* แถบควบคุมภายนอก (ตัวจัดการไว้นอก) */}
+            <div className="external-controller flex flex-col gap-4 p-4 bg-surface-highlight border border-panel-border rounded-xl">
+              <button className="toolbar-btn" title="Power">
+                <Smartphone size={20} className="text-danger" />
+              </button>
+              <div className="h-px bg-panel-border my-2" />
+              <button className="toolbar-btn" title="Back">
+                <RotateCcw size={20} />
+              </button>
+              <button className="toolbar-btn" title="Home">
+                <div className="w-4 h-4 border-2 border-current rounded-full" />
+              </button>
+              <button className="toolbar-btn" title="Recent Tasks">
+                <div className="w-4 h-4 border-2 border-current rounded-sm" />
+              </button>
+              <div className="h-px bg-panel-border my-2" />
+              <button className="toolbar-btn" title="Rotate">
+                <RotateCw size={20} onClick={() => setIsLandscape(!isLandscape)} />
+              </button>
+              <button className="toolbar-btn" title="Full Screen">
+                <Maximize size={20} />
+              </button>
+            </div>
           </div>
         ) : (
           <div className="stream-placeholder">
@@ -95,9 +99,6 @@ export default function StreamViewer({ selectedDevice }) {
             </div>
             <p className="mono text-muted" style={{ fontSize: '0.8rem', letterSpacing: '2px', marginTop: '16px' }}>
               SELECT_NODE → CONNECT → VIEW_STREAM
-            </p>
-            <p className="mono" style={{ fontSize: '0.7rem', color: '#444', marginTop: '8px' }}>
-              กดปุ่ม CONNECT ที่ device เพื่อเริ่ม stream
             </p>
           </div>
         )}
