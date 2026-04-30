@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Monitor, Wifi } from 'lucide-react';
+import { Monitor, Wifi, Smartphone, Layout } from 'lucide-react';
 
 export default function StreamViewer({ selectedDevice }) {
+  const [orientation, setOrientation] = useState('auto'); // auto, portrait, landscape
 
   const getIframeUrl = () => {
     // ดึง hostname และจัดการกรณี IPv6 (ต้องครอบด้วย [])
@@ -52,23 +53,67 @@ export default function StreamViewer({ selectedDevice }) {
             <span className="text-muted">AWAITING_NODE_SELECTION...</span>
           )}
         </div>
+        
+        {selectedDevice && (
+          <div className="orientation-selector">
+            <button 
+              className={`orientation-btn ${orientation === 'auto' ? 'active' : ''}`}
+              onClick={() => setOrientation('auto')}
+              title="Auto Mode"
+            >
+              AUTO
+            </button>
+            <button 
+              className={`orientation-btn ${orientation === 'portrait' ? 'active' : ''}`}
+              onClick={() => setOrientation('portrait')}
+              title="Portrait Mode"
+            >
+              PORTRAIT
+            </button>
+            <button 
+              className={`orientation-btn ${orientation === 'landscape' ? 'active' : ''}`}
+              onClick={() => setOrientation('landscape')}
+              title="Landscape Mode"
+            >
+              LANDSCAPE
+            </button>
+          </div>
+        )}
       </div>
       
       <div className="iframe-container relative">
         {iframeUrl ? (
-          <div style={{ position: 'absolute', top: '20px', right: '20px', bottom: '20px', left: '20px' }}>
-            {/* Auto Mode: High-tech monitor frame, lets ws-scrcpy handle aspect ratio naturally */}
-            <div className="cyber-monitor-frame">
-              <div className="cyber-monitor-inner">
-                <iframe 
-                  key={selectedDevice.id}
-                  src={iframeUrl} 
-                  title="ws-scrcpy stream"
-                  allow="fullscreen"
-                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none', background: 'transparent' }}
-                />
+          <div className="flex items-center justify-center w-full h-full">
+            {orientation === 'auto' ? (
+              /* Auto Mode: High-tech monitor frame */
+              <div className="cyber-monitor-frame" style={{ width: 'calc(100% - 40px)', height: 'calc(100% - 40px)' }}>
+                <div className="cyber-monitor-inner">
+                  <iframe 
+                    key={`${selectedDevice.id}-auto`}
+                    src={iframeUrl} 
+                    title="ws-scrcpy stream auto"
+                    allow="fullscreen"
+                    className="iframe-clip-auto"
+                    style={{ background: 'transparent' }}
+                  />
+                </div>
               </div>
-            </div>
+            ) : (
+              /* Phone Frame Mode: Portrait or Landscape */
+              <div className={`cyber-phone-frame ${orientation}`}>
+                <div className="cyber-phone-buttons"></div>
+                <div className="cyber-phone-screen">
+                  <iframe 
+                    key={`${selectedDevice.id}-${orientation}`}
+                    src={iframeUrl} 
+                    title={`ws-scrcpy stream ${orientation}`}
+                    allow="fullscreen"
+                    className={`iframe-clip-${orientation}`}
+                    style={{ background: 'transparent' }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="stream-placeholder">

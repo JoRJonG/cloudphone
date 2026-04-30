@@ -457,6 +457,41 @@ input {
 
 .toolbar-btn.active {
   color: var(--secondary);
+  border-color: rgba(0, 240, 255, 0.3);
+  background: rgba(0, 240, 255, 0.05);
+}
+
+/* Orientation Selector in Stream Toolbar */
+.orientation-selector {
+  display: flex;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  padding: 2px;
+  margin-right: 10px;
+  border: 1px solid var(--panel-border);
+}
+
+.orientation-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 4px 8px;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-radius: 2px;
+  letter-spacing: 1px;
+}
+
+.orientation-btn:hover {
+  color: white;
+}
+
+.orientation-btn.active {
+  background: var(--secondary);
+  color: var(--bg-color);
+  font-weight: bold;
 }
 
 /* Placeholder เมื่อยังไม่ได้เลือก device */
@@ -1297,4 +1332,23 @@ input {
 .cyber-phone-frame.landscape .cyber-phone-screen {
   width: 720px;
   height: 360px;
+}
+
+/* Clipping logic for ws-scrcpy sidebar */
+.iframe-clip-auto {
+  width: 112%;
+  height: 100%;
+  border: none;
+}
+
+.iframe-clip-portrait {
+  width: 114%; /* Dushes the right sidebar out of the 9:16 frame */
+  height: 100%;
+  border: none;
+}
+
+.iframe-clip-landscape {
+  width: 107%; /* Dushes the right sidebar out of the 16:9 frame */
+  height: 100%;
+  border: none;
 }
