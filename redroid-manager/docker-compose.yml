@@ -1,0 +1,34 @@
+services:
+  redroid-manager:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # mount SQLite file ออกมาข้างนอก เพื่อให้ข้อมูลไม่หายเมื่อ restart container
+      - sqlite_data:/app/data
+    env_file:
+      - .env
+    environment:
+      - JWT_SECRET=${JWT_SECRET}
+    networks:
+      - redroid_net
+    restart: unless-stopped
+
+  ws-scrcpy:
+    image: scavin/ws-scrcpy
+    ports:
+      - "8001:8000"
+    networks:
+      - redroid_net
+    restart: unless-stopped
+    depends_on:
+      - redroid-manager
+
+networks:
+  redroid_net:
+    driver: bridge
+
+volumes:
+  # volume สำหรับ SQLite database file แทน MariaDB
+  sqlite_data:
