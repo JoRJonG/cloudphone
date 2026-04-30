@@ -404,7 +404,7 @@ def create_device(device: DeviceCreate, current_user: User = Depends(require_adm
 
         container = client.containers.run(
             "redroid/redroid:11.0.0-latest",
-            command=["androidboot.redroid_gpu_mode=guest", "qemu=1"],
+            command=["androidboot.redroid_gpu_mode=guest", "qemu=1", "androidboot.use_memfd=1"],
             name=device.name,
             ports={'5555/tcp': device.port},
             network="redroid-manager_redroid_net",
