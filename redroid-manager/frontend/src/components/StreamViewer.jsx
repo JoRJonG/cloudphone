@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { Monitor, Wifi, RotateCw, RotateCcw, Maximize, Smartphone } from 'lucide-react';
+import { Monitor, Wifi } from 'lucide-react';
 
 export default function StreamViewer({ selectedDevice }) {
-  const [isLandscape, setIsLandscape] = useState(false);
 
   const getIframeUrl = () => {
     // ดึง hostname และจัดการกรณี IPv6 (ต้องครอบด้วย [])
@@ -55,26 +54,20 @@ export default function StreamViewer({ selectedDevice }) {
         </div>
       </div>
       
-      <div className="iframe-container">
+      <div className="iframe-container relative">
         {iframeUrl ? (
-          <div className="w-full h-full flex items-center justify-center">
-            {/* ใช้ขนาดพื้นที่แสดงผลที่คงที่เพื่อความแม่นยำสูงสุด */}
-            <div className="relative overflow-hidden" style={{ width: '360px', height: '720px', background: '#0a0a0c' }}>
-              <iframe 
-                key={selectedDevice.id}
-                src={iframeUrl} 
-                title="ws-scrcpy stream"
-                allow="fullscreen"
-                className="absolute border-none"
-                style={{ 
-                  /* ใช้ขนาดพิกเซลคงที่เพื่อไม่ให้ภาพบิดเบี้ยว (AspectRatio) */
-                  width: '460px', 
-                  height: '1050px', 
-                  top: '-155px', 
-                  left: '-48px', 
-                  background: 'transparent'
-                }}
-              />
+          <div style={{ position: 'absolute', top: '20px', right: '20px', bottom: '20px', left: '20px' }}>
+            {/* Auto Mode: High-tech monitor frame, lets ws-scrcpy handle aspect ratio naturally */}
+            <div className="cyber-monitor-frame">
+              <div className="cyber-monitor-inner">
+                <iframe 
+                  key={selectedDevice.id}
+                  src={iframeUrl} 
+                  title="ws-scrcpy stream"
+                  allow="fullscreen"
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none', background: 'transparent' }}
+                />
+              </div>
             </div>
           </div>
         ) : (

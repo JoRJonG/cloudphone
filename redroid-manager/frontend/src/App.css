@@ -1135,3 +1135,166 @@ input {
   background: rgba(0, 255, 157, 0.08);
   box-shadow: 0 0 8px var(--primary-glow);
 }
+
+/* ============================================================
+   PREMIUM DEVICE FRAMES (Cyber Theme)
+   ============================================================ */
+
+/* High-tech Auto Monitor Frame */
+.cyber-monitor-frame {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background: var(--surface-highlight);
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cyber-monitor-frame::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--primary), transparent);
+  opacity: 0.8;
+  z-index: 10;
+  box-shadow: 0 0 15px var(--primary);
+}
+
+.cyber-monitor-inner {
+  width: calc(100% - 8px);
+  height: calc(100% - 8px);
+  background: #000;
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Smartphone Mockup Frame */
+.cyber-phone-frame {
+  position: relative;
+  background: #050505;
+  border-radius: 40px;
+  box-shadow: 
+    inset 0 0 0 2px #1f1f23,
+    0 0 0 6px #0a0a0c,
+    0 25px 50px -12px rgba(0,0,0,0.9),
+    0 0 35px var(--primary-glow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Camera Punch Hole */
+.cyber-phone-frame::after {
+  content: '';
+  position: absolute;
+  background: #0a0a0c;
+  border-radius: 50%;
+  box-shadow: inset 0 -1px 2px rgba(255,255,255,0.1), 0 1px 1px rgba(0,0,0,0.5);
+  z-index: 20;
+  pointer-events: none;
+}
+
+/* Hardware buttons wrapper */
+.cyber-phone-buttons {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Portrait Dimensions */
+.cyber-phone-frame.portrait {
+  width: 392px;  /* 360 + 32 */
+  height: 752px; /* 720 + 32 */
+}
+.cyber-phone-frame.portrait::after {
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 14px;
+  height: 14px;
+}
+.cyber-phone-frame.portrait .cyber-phone-buttons::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 150px;
+  width: 4px;
+  height: 80px;
+  background: #2a2a30;
+  border-radius: 4px 0 0 4px;
+  box-shadow: 0 100px 0 #2a2a30;
+}
+.cyber-phone-frame.portrait .cyber-phone-buttons::after {
+  content: '';
+  position: absolute;
+  right: -8px;
+  top: 200px;
+  width: 4px;
+  height: 50px;
+  background: #2a2a30;
+  border-radius: 0 4px 4px 0;
+}
+
+/* Landscape Dimensions */
+.cyber-phone-frame.landscape {
+  width: 752px;
+  height: 392px;
+}
+.cyber-phone-frame.landscape::after {
+  left: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+}
+.cyber-phone-frame.landscape .cyber-phone-buttons::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 150px;
+  height: 4px;
+  width: 80px;
+  background: #2a2a30;
+  border-radius: 4px 4px 0 0;
+  box-shadow: 100px 0 0 #2a2a30;
+}
+.cyber-phone-frame.landscape .cyber-phone-buttons::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 200px;
+  height: 4px;
+  width: 50px;
+  background: #2a2a30;
+  border-radius: 0 0 4px 4px;
+}
+
+/* The actual screen area */
+.cyber-phone-screen {
+  position: relative;
+  background: #000;
+  border-radius: 24px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.05);
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+}
+
+/* Size matching original crop window */
+.cyber-phone-frame.portrait .cyber-phone-screen {
+  width: 360px;
+  height: 720px;
+}
+
+.cyber-phone-frame.landscape .cyber-phone-screen {
+  width: 720px;
+  height: 360px;
+}
