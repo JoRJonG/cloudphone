@@ -28,7 +28,7 @@ export default function StreamViewer({ selectedDevice }) {
       
       // กลับไปใช้ #! สำหรับ main URL เพราะการใช้ ? ทำให้ ws-scrcpy ค้างที่หน้า Device Tracker
       // ใช้พารามิเตอร์สำหรับโหมด Stream โดยเฉพาะ เพื่อให้ ws-scrcpy แสดงผลเต็มหน้าต่าง iframe
-      const url = `http://${host}:8001/#!action=stream&udid=${encodeURIComponent(udid)}&player=mse&hide-header=1&hide-navbar=1&hide-footer=1&hide-menu=1&keyboard=1&mouse=1&ws=${encodeURIComponent(wsUrl)}`;
+      const url = `http://${host}:8001/#!action=stream&udid=${encodeURIComponent(udid)}&player=mse&hide-header=1&hide-navbar=1&hide-footer=1&hide-menu=0&keyboard=true&mouse=true&ws=${encodeURIComponent(wsUrl)}`;
       
       return url;
     }
@@ -54,29 +54,44 @@ export default function StreamViewer({ selectedDevice }) {
           )}
         </div>
         
+          </div>
+        )}
+
         {selectedDevice && (
-          <div className="orientation-selector">
+          <div className="flex items-center gap-3">
             <button 
-              className={`orientation-btn ${orientation === 'auto' ? 'active' : ''}`}
-              onClick={() => setOrientation('auto')}
-              title="Auto Mode"
+              className="btn-outline text-[10px] px-3 py-1 flex items-center gap-2 border-secondary/30 text-secondary hover:bg-secondary/10"
+              onClick={() => {
+                const iframe = document.querySelector('.scrcpy-iframe');
+                if (iframe) iframe.focus();
+              }}
             >
-              AUTO
+              <Monitor size={12} />
+              SYNC_KEYBOARD
             </button>
-            <button 
-              className={`orientation-btn ${orientation === 'portrait' ? 'active' : ''}`}
-              onClick={() => setOrientation('portrait')}
-              title="Portrait Mode"
-            >
-              PORTRAIT
-            </button>
-            <button 
-              className={`orientation-btn ${orientation === 'landscape' ? 'active' : ''}`}
-              onClick={() => setOrientation('landscape')}
-              title="Landscape Mode"
-            >
-              LANDSCAPE
-            </button>
+            <div className="orientation-selector">
+              <button 
+                className={`orientation-btn ${orientation === 'auto' ? 'active' : ''}`}
+                onClick={() => setOrientation('auto')}
+                title="Auto Mode"
+              >
+                AUTO
+              </button>
+              <button 
+                className={`orientation-btn ${orientation === 'portrait' ? 'active' : ''}`}
+                onClick={() => setOrientation('portrait')}
+                title="Portrait Mode"
+              >
+                PORTRAIT
+              </button>
+              <button 
+                className={`orientation-btn ${orientation === 'landscape' ? 'active' : ''}`}
+                onClick={() => setOrientation('landscape')}
+                title="Landscape Mode"
+              >
+                LANDSCAPE
+              </button>
+            </div>
           </div>
         )}
       </div>
