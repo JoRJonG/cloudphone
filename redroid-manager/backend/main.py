@@ -487,12 +487,24 @@ def get_or_build_custom_image(android_version: str, features: List[str]):
             capture_output=True,
             text=True
         )
-        if process.returncode != 0:
-            print(f"BUILD_ERROR: {process.stderr}")
-            raise Exception(f"Failed to build image: {process.stderr}")
         
-        print(f"BUILD_SUCCESS: {new_image_name}")
-        return new_image_name
+        # Log output เพื่อการตรวจสอบ
+        if process.stdout:
+            print(f"BUILD_STDOUT: {process.stdout}")
+        if process.stderr:
+            print(f"BUILD_STDERR: {process.stderr}")
+
+        if process.returncode != 0:
+            raise Exception(f"Script returned non-zero code {process.returncode}: {process.stderr}")
+        
+        # ตรวจสอบอีกครั้งว่า image ถูกสร้างขึ้นจริงหรือไม่
+        try:
+            client.images.get(new_image_name)
+            print(f"BUILD_SUCCESS: {new_image_name}")
+            return new_image_name
+        except docker.errors.ImageNotFound:
+            raise Exception(f"Script finished but image '{new_image_name}' was not found in Docker. Output: {process.stdout}")
+
     except Exception as e:
         print(f"BUILD_EXCEPTION: {e}")
         raise e
