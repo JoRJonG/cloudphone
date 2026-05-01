@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, status, Depends, Response, APIRouter, UploadFile, File
+from fastapi import FastAPI, HTTPException, status, Depends, Response, APIRouter, UploadFile, File, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -391,8 +391,43 @@ def get_devices(db: Session = Depends(get_db), current_user: User = Depends(get_
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# ============================================================
+# Helper: Auto connect logic
+# ============================================================
+async def auto_connect_new_device(device_id: str):
+    """ฟังก์ชันทำงานในพื้นหลังเพื่อรอให้ Android พร้อมและสั่ง ADB connect อัตโนมัติ"""
+    if not client:
+        return
+        
+    try:
+        # รอประมาณ 10 วินาทีเพื่อให้ Android บูต ADB Daemon ขึ้นมา
+        await asyncio.sleep(10)
+        
+        container = client.containers.get(device_id)
+        networks = container.attrs.get('NetworkSettings', {}).get('Networks', {})
+        target_ip = None
+        if networks:
+            target_ip = list(networks.values())[0].get('IPAddress')
+            
+        if not target_ip:
+            return
+
+        # ค้นหา ws-scrcpy container
+        ws_scrcpy = next((c for c in client.containers.list() if 'ws-scrcpy' in c.name), None)
+        if ws_scrcpy:
+            # พยายามต่อ ADB (อาจจะลองซ้ำ 2 ครั้งเผื่อเครื่องยังไม่พร้อม)
+            for _ in range(2):
+                exit_code, output = ws_scrcpy.exec_run(f"adb connect {target_ip}:5555")
+                if exit_code == 0 and b"connected to" in output:
+                    print(f"AUTO_CONNECT: Success for {target_ip}")
+                    break
+                await asyncio.sleep(5)
+                
+    except Exception as e:
+        print(f"AUTO_CONNECT: Failed for {device_id} - {e}")
+
 @api_router.post("/devices")
-def create_device(device: DeviceCreate, current_user: User = Depends(require_admin)):
+def create_device(device: DeviceCreate, background_tasks: BackgroundTasks, current_user: User = Depends(require_admin)):
     """สร้าง Redroid container ใหม่"""
     if not client:
         raise HTTPException(status_code=500, detail="Docker client not connected")
@@ -416,7 +451,11 @@ def create_device(device: DeviceCreate, current_user: User = Depends(require_adm
                 '/dev/binderfs': {'bind': '/dev/binderfs', 'mode': 'rw'}
             }
         )
-        return {"status": "success", "message": f"Device '{device.name}' created", "id": container.id}
+        
+        # เพิ่ม background task เพื่อสั่ง connect อัตโนมัติ
+        background_tasks.add_task(auto_connect_new_device, container.id)
+        
+        return {"status": "success", "message": f"Device '{device.name}' created and auto-connecting", "id": container.id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

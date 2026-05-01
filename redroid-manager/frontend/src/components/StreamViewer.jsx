@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Monitor, Wifi, Smartphone, Layout } from 'lucide-react';
+import { Monitor, Wifi } from 'lucide-react';
 
 export default function StreamViewer({ selectedDevice }) {
   const [orientation, setOrientation] = useState('auto'); // auto, portrait, landscape
@@ -83,37 +83,17 @@ export default function StreamViewer({ selectedDevice }) {
       
       <div className="iframe-container relative">
         {iframeUrl ? (
-          <div className="flex items-center justify-center w-full h-full">
-            {orientation === 'auto' ? (
-              /* Auto Mode: High-tech monitor frame */
-              <div className="cyber-monitor-frame" style={{ width: 'calc(100% - 40px)', height: 'calc(100% - 40px)' }}>
-                <div className="cyber-monitor-inner">
-                  <iframe 
-                    key={`${selectedDevice.id}-auto`}
-                    src={iframeUrl} 
-                    title="ws-scrcpy stream auto"
-                    allow="fullscreen"
-                    className="iframe-clip-auto"
-                    style={{ background: 'transparent' }}
-                  />
-                </div>
-              </div>
-            ) : (
-              /* Phone Frame Mode: Portrait or Landscape */
-              <div className={`cyber-phone-frame ${orientation}`}>
-                <div className="cyber-phone-buttons"></div>
-                <div className="cyber-phone-screen">
-                  <iframe 
-                    key={`${selectedDevice.id}-${orientation}`}
-                    src={iframeUrl} 
-                    title={`ws-scrcpy stream ${orientation}`}
-                    allow="fullscreen"
-                    className={`iframe-clip-${orientation}`}
-                    style={{ background: 'transparent' }}
-                  />
-                </div>
-              </div>
-            )}
+          <div className="stream-center">
+            <div className={`scrcpy-shell scrcpy-shell--${orientation}`}>
+              <iframe
+                key={`${selectedDevice.id}-${orientation}`}
+                src={iframeUrl}
+                title="ws-scrcpy stream"
+                allow="fullscreen"
+                className="scrcpy-iframe"
+                style={{ background: 'transparent' }}
+              />
+            </div>
           </div>
         ) : (
           <div className="stream-placeholder">
