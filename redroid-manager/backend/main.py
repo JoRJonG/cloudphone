@@ -446,10 +446,18 @@ def get_or_build_custom_image(android_version: str, features: List[str]):
     if not valid_features:
         return f"redroid/redroid:{android_version}-latest"
 
-    # สร้างชื่อ image tag ตามมาตรฐานของ script
-    # เช่น redroid/redroid:11.0.0_gapps_magisk
-    tag_parts = [android_version] + sorted(valid_features)
-    new_tag = "_".join(tag_parts)
+    # สร้างชื่อ image tag ตามมาตรฐานของ script (เรียงตามลำดับที่ script ทำงาน)
+    # ลำดับใน redroid.py: android -> gapps -> ndk -> houdini -> magisk -> widevine
+    tags = [android_version]
+    if "gapps" in valid_features: tags.append("gapps")
+    if "litegapps" in valid_features: tags.append("litegapps")
+    if "mindthegapps" in valid_features: tags.append("mindthegapps")
+    if "ndk" in valid_features: tags.append("ndk")
+    if "houdini" in valid_features: tags.append("houdini")
+    if "magisk" in valid_features: tags.append("magisk")
+    if "widevine" in valid_features: tags.append("widevine")
+    
+    new_tag = "_".join(tags)
     new_image_name = f"redroid/redroid:{new_tag}"
 
     # ตรวจสอบว่ามี image อยู่แล้วหรือไม่
