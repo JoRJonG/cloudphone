@@ -1,0 +1,3 @@
+[submodule "redroid-manager/backend/redroid_script"]
+	path = redroid-manager/backend/redroid_script
+	url = https://github.com/remote-android/redroid-script.git

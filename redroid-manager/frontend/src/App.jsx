@@ -132,14 +132,18 @@ function App() {
   };
 
   // ===== Device Handlers =====
-  const handleAddDevice = async (name, port) => {
+  const handleAddDevice = async (name, port, features = []) => {
     if (!name || !port) return;
     setIsAdding(true);
     try {
       const res = await fetch('/api/devices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, port: parseInt(port) }),
+        body: JSON.stringify({ 
+          name, 
+          port: parseInt(port),
+          features
+        }),
         credentials: 'include'
       });
       const data = await res.json();

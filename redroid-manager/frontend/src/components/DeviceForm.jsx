@@ -4,10 +4,20 @@ import { X } from 'lucide-react';
 export default function DeviceForm({ onAdd, isAdding, onCancel }) {
   const [newName, setNewName] = useState('');
   const [newPort, setNewPort] = useState('');
+  const [features, setFeatures] = useState({
+    gapps: false,
+    magisk: false,
+    ndk: false
+  });
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onAdd(newName, newPort);
+    const selectedFeatures = Object.keys(features).filter(f => features[f]);
+    onAdd(newName, newPort, selectedFeatures);
+  };
+
+  const toggleFeature = (f) => {
+    setFeatures(prev => ({ ...prev, [f]: !prev[f] }));
   };
 
   return (
@@ -36,6 +46,25 @@ export default function DeviceForm({ onAdd, isAdding, onCancel }) {
             required
           />
         </div>
+
+        <div className="feature-selection">
+          <p className="text-xs text-muted mb-2 tracking-widest">ENHANCEMENTS</p>
+          <div className="checkbox-group">
+            <label className={`checkbox-item ${features.gapps ? 'active' : ''}`}>
+              <input type="checkbox" checked={features.gapps} onChange={() => toggleFeature('gapps')} />
+              <span>GAPPS</span>
+            </label>
+            <label className={`checkbox-item ${features.magisk ? 'active' : ''}`}>
+              <input type="checkbox" checked={features.magisk} onChange={() => toggleFeature('magisk')} />
+              <span>MAGISK</span>
+            </label>
+            <label className={`checkbox-item ${features.ndk ? 'active' : ''}`}>
+              <input type="checkbox" checked={features.ndk} onChange={() => toggleFeature('ndk')} />
+              <span>ARM_NDK</span>
+            </label>
+          </div>
+        </div>
+
         <button type="submit" className="btn-glitch small w-full mt-2" disabled={isAdding}>
           <span className="btn-text">{isAdding ? 'DEPLOYING...' : 'DEPLOY_NODE'}</span>
         </button>

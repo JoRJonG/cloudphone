@@ -10,8 +10,8 @@ RUN npm run build
 FROM python:3.10-slim
 WORKDIR /app
 
-# Install Docker CLI to interact with docker socket
-RUN apt-get update && apt-get install -y docker.io && rm -rf /var/lib/apt/lists/*
+# Install Docker CLI and dependencies for redroid-script
+RUN apt-get update && apt-get install -y docker.io lzip curl && rm -rf /var/lib/apt/lists/*
 
 # Install python dependencies
 COPY backend/requirements.txt ./backend/

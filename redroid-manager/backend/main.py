@@ -11,6 +11,8 @@ import io
 import tarfile
 import tempfile
 import asyncio
+import subprocess
+import sys
 from functools import partial
 
 from .database import get_db, engine, Base
@@ -69,6 +71,8 @@ def require_admin(current_user: User = Depends(get_current_user)):
 class DeviceCreate(BaseModel):
     name: str
     port: int
+    android_version: Optional[str] = "11.0.0"
+    features: Optional[List[str]] = [] # gapps, magisk, ndk, widevine
 
 class UserCreate(BaseModel):
     username: str
@@ -429,9 +433,73 @@ async def auto_connect_new_device(device_id: str):
     except Exception as e:
         print(f"AUTO_CONNECT: Failed for {device_id} - {e}")
 
+# ============================================================
+# Helper: Image Building (redroid-script)
+# ============================================================
+def get_or_build_custom_image(android_version: str, features: List[str]):
+    """เรียกใช้ redroid-script เพื่อ build image ตามฟีเจอร์ที่ต้องการ"""
+    if not features:
+        return f"redroid/redroid:{android_version}-latest"
+
+    # กรองเฉพาะฟีเจอร์ที่รองรับ
+    valid_features = [f for f in features if f in ["gapps", "magisk", "ndk", "widevine", "litegapps", "mindthegapps", "houdini"]]
+    if not valid_features:
+        return f"redroid/redroid:{android_version}-latest"
+
+    # สร้างชื่อ image tag ตามมาตรฐานของ script
+    # เช่น redroid/redroid:11.0.0_gapps_magisk
+    tag_parts = [android_version] + sorted(valid_features)
+    new_tag = "_".join(tag_parts)
+    new_image_name = f"redroid/redroid:{new_tag}"
+
+    # ตรวจสอบว่ามี image อยู่แล้วหรือไม่
+    try:
+        client.images.get(new_image_name)
+        print(f"IMAGE_EXISTS: {new_image_name}")
+        return new_image_name
+    except docker.errors.ImageNotFound:
+        print(f"BUILDING_IMAGE: {new_image_name}...")
+
+    # เตรียม arguments สำหรับ script
+    script_path = os.path.join(os.path.dirname(__file__), "redroid_script", "redroid.py")
+    cmd = [sys.executable, script_path, "-a", android_version]
+    
+    if "gapps" in valid_features: cmd.append("-g")
+    if "magisk" in valid_features: cmd.append("-m")
+    if "ndk" in valid_features: cmd.append("-n")
+    if "widevine" in valid_features: cmd.append("-w")
+    if "litegapps" in valid_features: cmd.append("-lg")
+    if "mindthegapps" in valid_features: cmd.append("-mtg")
+    if "houdini" in valid_features: cmd.append("-i")
+
+    # ตั้งค่า environment เพื่อให้ script ไม่พังเรื่อง USER/home
+    env = os.environ.copy()
+    if "USER" not in env: env["USER"] = "root"
+    if "HOME" not in env: env["HOME"] = "/root"
+
+    try:
+        # รัน build script
+        # หมายเหตุ: script นี้จะสร้าง Dockerfile และรัน docker build ใน directory ที่มันอยู่
+        process = subprocess.run(
+            cmd, 
+            cwd=os.path.dirname(script_path),
+            env=env,
+            capture_output=True,
+            text=True
+        )
+        if process.returncode != 0:
+            print(f"BUILD_ERROR: {process.stderr}")
+            raise Exception(f"Failed to build image: {process.stderr}")
+        
+        print(f"BUILD_SUCCESS: {new_image_name}")
+        return new_image_name
+    except Exception as e:
+        print(f"BUILD_EXCEPTION: {e}")
+        raise e
+
 @api_router.post("/devices")
 def create_device(device: DeviceCreate, background_tasks: BackgroundTasks, current_user: User = Depends(require_admin)):
-    """สร้าง Redroid container ใหม่"""
+    """สร้าง Redroid container ใหม่ (รองรับการ build image อัตโนมัติ)"""
     if not client:
         raise HTTPException(status_code=500, detail="Docker client not connected")
 
@@ -440,9 +508,34 @@ def create_device(device: DeviceCreate, background_tasks: BackgroundTasks, curre
         if existing:
             raise HTTPException(status_code=400, detail=f"Container name '{device.name}' already exists")
 
+        # 1. จัดเตรียม Image
+        try:
+            target_image = get_or_build_custom_image(device.android_version, device.features)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Image preparation failed: {str(e)}")
+
+        # 2. จัดเตรียม Boot arguments และ ro.* properties
+        # properties พื้นฐาน
+        boot_args = ["androidboot.redroid_gpu_mode=guest", "qemu=1", "androidboot.use_memfd=1"]
+        
+        # เพิ่ม properties สำหรับ ARM translation ถ้ามีการเลือก NDK
+        if "ndk" in device.features:
+            boot_args.extend([
+                "ro.product.cpu.abilist=x86_64,arm64-v8a,x86,armeabi-v7a,armeabi",
+                "ro.product.cpu.abilist64=x86_64,arm64-v8a",
+                "ro.product.cpu.abilist32=x86,armeabi-v7a,armeabi",
+                "ro.dalvik.vm.isa.arm=x86",
+                "ro.dalvik.vm.isa.arm64=x86_64",
+                "ro.enable.native.bridge.exec=1",
+                "ro.vendor.enable.native.bridge.exec=1",
+                "ro.vendor.enable.native.bridge.exec64=1",
+                "ro.dalvik.vm.native.bridge=libndk_translation.so",
+                "ro.ndk_translation.version=0.2.3"
+            ])
+
         container = client.containers.run(
-            REDROID_IMAGE,
-            command=["androidboot.redroid_gpu_mode=guest", "qemu=1", "androidboot.use_memfd=1"],
+            target_image,
+            command=boot_args,
             name=device.name,
             ports={'5555/tcp': device.port},
             network="redroid-manager_redroid_net",
@@ -458,7 +551,9 @@ def create_device(device: DeviceCreate, background_tasks: BackgroundTasks, curre
         # เพิ่ม background task เพื่อสั่ง connect อัตโนมัติ
         background_tasks.add_task(auto_connect_new_device, container.id)
         
-        return {"status": "success", "message": f"Device '{device.name}' created and auto-connecting", "id": container.id}
+        return {"status": "success", "message": f"Device '{device.name}' created using {target_image}", "id": container.id}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
