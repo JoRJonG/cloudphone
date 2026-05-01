@@ -28,7 +28,7 @@ export default function StreamViewer({ selectedDevice }) {
       
       // กลับไปใช้ #! สำหรับ main URL เพราะการใช้ ? ทำให้ ws-scrcpy ค้างที่หน้า Device Tracker
       // ใช้พารามิเตอร์สำหรับโหมด Stream โดยเฉพาะ เพื่อให้ ws-scrcpy แสดงผลเต็มหน้าต่าง iframe
-      const url = `http://${host}:8001/#!action=stream&udid=${encodeURIComponent(udid)}&player=mse&hide-header=1&hide-navbar=1&hide-footer=1&hide-menu=1&ws=${encodeURIComponent(wsUrl)}`;
+      const url = `http://${host}:8001/#!action=stream&udid=${encodeURIComponent(udid)}&player=mse&hide-header=1&hide-navbar=1&hide-footer=1&hide-menu=1&keyboard=1&mouse=1&ws=${encodeURIComponent(wsUrl)}`;
       
       return url;
     }
@@ -83,7 +83,7 @@ export default function StreamViewer({ selectedDevice }) {
       
       <div className="iframe-container relative">
         {iframeUrl ? (
-          <div className="stream-center">
+          <div className="stream-center flex-col gap-4">
             <div className={`scrcpy-shell scrcpy-shell--${orientation}`}>
               <iframe
                 key={`${selectedDevice.id}-${orientation}`}
@@ -93,6 +93,29 @@ export default function StreamViewer({ selectedDevice }) {
                 className="scrcpy-iframe"
                 style={{ background: 'transparent' }}
               />
+            </div>
+            
+            <div className="stream-hints mono text-[10px] text-muted flex gap-6 opacity-60 hover:opacity-100 transition-opacity">
+              <div className="hint-item flex items-center gap-2">
+                <span className="bg-surface-highlight px-1 border border-panel-border text-primary">CLICK</span>
+                <span>TO_FOCUS_KEYBOARD</span>
+              </div>
+              <div className="hint-item flex items-center gap-2">
+                <span className="bg-surface-highlight px-1 border border-panel-border text-secondary">ALT+H</span>
+                <span>HOME</span>
+              </div>
+              <div className="hint-item flex items-center gap-2">
+                <span className="bg-surface-highlight px-1 border border-panel-border text-secondary">ALT+B</span>
+                <span>BACK</span>
+              </div>
+              <div className="hint-item flex items-center gap-2">
+                <span className="bg-surface-highlight px-1 border border-panel-border text-secondary">ALT+S</span>
+                <span>RECENTS</span>
+              </div>
+              <div className="hint-item flex items-center gap-2">
+                <span className="bg-surface-highlight px-1 border border-panel-border text-secondary">ALT+P</span>
+                <span>POWER</span>
+              </div>
             </div>
           </div>
         ) : (

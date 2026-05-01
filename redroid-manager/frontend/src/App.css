@@ -1270,3 +1270,17 @@ input {
 .checkbox-item input {
   display: none;
 }
+
+/* Stream Hints */
+.stream-hints {
+  padding: 10px 20px;
+  background: rgba(10, 10, 12, 0.4);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+}
+
+.hint-item span:first-child {
+  font-weight: 600;
+  border-radius: 2px;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+}
