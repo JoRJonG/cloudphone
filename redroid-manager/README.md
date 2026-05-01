@@ -18,6 +18,18 @@
 docker-compose up -d --build
 ```
 
+### เปลี่ยน Image ของ Redroid (เช่น ใช้ `redroid-script`)
+โปรเจกต์นี้ไม่ได้รัน Redroid ผ่าน `docker-compose.yml` โดยตรง แต่สร้าง container ผ่าน Docker API ใน backend ดังนั้นถ้าต้องการใช้ image อื่น (เช่น image ที่ `redroid-script` สร้างจาก `redroid/redroid`) ให้ตั้งค่า env ชื่อ `REDROID_IMAGE`
+
+- **ตัวอย่าง**: ตั้งเป็น image ที่คุณสร้างไว้ เช่น `redroid/redroid:11.0.0-gapps-ndk-magisk-widevine`
+- **วิธีตั้งค่า**: ใส่ในไฟล์ `.env` ที่อยู่ข้าง `docker-compose.yml`
+
+```bash
+REDROID_IMAGE=redroid/redroid:11.0.0-latest
+```
+
+รายละเอียดการสร้าง image แบบเติม Gapps/Magisk/libndk ฯลฯ ดูได้ที่ [ayasa520/redroid-script](https://github.com/ayasa520/redroid-script)
+
 ### การตั้งค่าการแสดงผล
 หากตอนเข้าไปใช้งานแล้วหน้าจอใน Dashboard ไม่ขึ้น:
 - ลองเข้าไปที่ `http://<IP_ของ_VPS>:8001` เพื่อเช็คว่า `ws-scrcpy` ทำงานปกติหรือไม่

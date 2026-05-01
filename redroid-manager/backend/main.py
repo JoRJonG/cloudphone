@@ -26,6 +26,9 @@ except ImportError:
 
 app = FastAPI(title="Redroid Farm Manager API")
 
+# Image ที่ใช้สร้าง container ใหม่ (override ได้ด้วย env)
+REDROID_IMAGE = os.getenv("REDROID_IMAGE", "redroid/redroid:11.0.0-latest")
+
 # สร้าง APIRouter สำหรับทุกเส้นทางที่ขึ้นต้นด้วย /api
 api_router = APIRouter(prefix="/api")
 
@@ -438,7 +441,7 @@ def create_device(device: DeviceCreate, background_tasks: BackgroundTasks, curre
             raise HTTPException(status_code=400, detail=f"Container name '{device.name}' already exists")
 
         container = client.containers.run(
-            "redroid/redroid:11.0.0-latest",
+            REDROID_IMAGE,
             command=["androidboot.redroid_gpu_mode=guest", "qemu=1", "androidboot.use_memfd=1"],
             name=device.name,
             ports={'5555/tcp': device.port},

@@ -11,6 +11,7 @@ services:
       - .env
     environment:
       - JWT_SECRET=${JWT_SECRET}
+      - REDROID_IMAGE=${REDROID_IMAGE}
     networks:
       - redroid_net
     restart: unless-stopped
