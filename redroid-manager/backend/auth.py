@@ -9,12 +9,33 @@ from sqlalchemy.orm import Session
 from .database import get_db
 from .models import User
 
-SECRET_KEY = os.getenv("JWT_SECRET", "change_this_in_production_extremely_secret")
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
+DEFAULT_DEV_JWT_SECRET = "development-only-jwt-secret-change-me"
+SECRET_KEY = os.getenv("JWT_SECRET")
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60 * 24))
 
 pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login", auto_error=False)
+
+
+def is_production_environment():
+    return ENVIRONMENT == "production"
+
+
+def validate_auth_config():
+    if is_production_environment() and not SECRET_KEY:
+        raise RuntimeError("JWT_SECRET is required when ENVIRONMENT=production")
+
+
+def should_use_secure_cookie():
+    raw_value = os.getenv("COOKIE_SECURE")
+    if raw_value is None:
+        return is_production_environment()
+    return raw_value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+validate_auth_config()
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
@@ -29,7 +50,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     else:
         expire = datetime.utcnow() + timedelta(minutes=15)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY or DEFAULT_DEV_JWT_SECRET, algorithm=ALGORITHM)
     return encoded_jwt
 
 def get_current_user(
@@ -50,7 +71,7 @@ def get_current_user(
         raise credentials_exception
 
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, SECRET_KEY or DEFAULT_DEV_JWT_SECRET, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception

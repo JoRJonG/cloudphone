@@ -1,7 +1,17 @@
 import DeviceCard from './DeviceCard';
 import { Loader2 } from 'lucide-react';
 
-export default function DeviceList({ devices, loading, selectedDevice, onSelectDevice, onConnectAdb, onDeleteDevice, onInstallApk }) {
+export default function DeviceList({
+  devices,
+  loading,
+  selectedDevice,
+  onSelectDevice,
+  onConnectAdb,
+  onDeleteDevice,
+  onInstallApk,
+  onDeviceAction,
+  activeDeviceAction
+}) {
   if (loading && devices.length === 0) {
     return (
       <div className="empty-state">
@@ -14,15 +24,15 @@ export default function DeviceList({ devices, loading, selectedDevice, onSelectD
   if (devices.length === 0) {
     return (
       <div className="empty-state">
-        <p className="text-sm mono text-muted">NO_NODES_FOUND</p>
+        <p className="text-sm mono text-muted">NO_MATCHING_NODES</p>
       </div>
     );
   }
 
   return (
     <div className="device-list">
-      {devices.map(device => (
-        <DeviceCard 
+      {devices.map((device) => (
+        <DeviceCard
           key={device.id}
           device={device}
           isActive={selectedDevice?.id === device.id}
@@ -30,6 +40,8 @@ export default function DeviceList({ devices, loading, selectedDevice, onSelectD
           onConnectAdb={onConnectAdb}
           onDelete={onDeleteDevice}
           onInstallApk={onInstallApk}
+          onDeviceAction={onDeviceAction}
+          activeAction={activeDeviceAction}
         />
       ))}
     </div>

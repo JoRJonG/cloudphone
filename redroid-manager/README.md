@@ -18,6 +18,16 @@
 docker-compose up -d --build
 ```
 
+ก่อนรันครั้งแรก ต้องกำหนดค่าใน `.env` อย่างน้อยดังนี้:
+
+```bash
+JWT_SECRET=your-long-random-secret
+INITIAL_ADMIN_USERNAME=admin
+INITIAL_ADMIN_PASSWORD=change-this-to-a-strong-password
+```
+
+ระบบจะสร้าง admin คนแรกจากค่า `INITIAL_ADMIN_USERNAME` และ `INITIAL_ADMIN_PASSWORD` เฉพาะตอนที่ฐานข้อมูลยังไม่มี admin เท่านั้น
+
 ### เปลี่ยน Image ของ Redroid (เช่น ใช้ `redroid-script`)
 โปรเจกต์นี้ไม่ได้รัน Redroid ผ่าน `docker-compose.yml` โดยตรง แต่สร้าง container ผ่าน Docker API ใน backend ดังนั้นถ้าต้องการใช้ image อื่น (เช่น image ที่ `redroid-script` สร้างจาก `redroid/redroid`) ให้ตั้งค่า env ชื่อ `REDROID_IMAGE`
 

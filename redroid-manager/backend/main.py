@@ -13,14 +13,16 @@ import tempfile
 import asyncio
 import subprocess
 import sys
+import time
 from functools import partial
 
-from .database import get_db, engine, Base
+from .database import get_db, engine, Base, SessionLocal
 from .models import User, UserDevice
-from .auth import get_password_hash, verify_password, create_access_token, get_current_user
+from .auth import get_password_hash, verify_password, create_access_token, get_current_user, should_use_secure_cookie
 
 # โหลดค่าจาก .env (ถ้ามี)
 try:
+    # pyrefly: ignore [missing-import]
     from dotenv import load_dotenv
     load_dotenv()
 except ImportError:
@@ -98,19 +100,33 @@ class DeviceAssignment(BaseModel):
 # ============================================================
 @app.on_event("startup")
 def on_startup():
+    db = SessionLocal()
     try:
         Base.metadata.create_all(bind=engine)
-        db = next(get_db())
-        admin = db.query(User).filter(User.username == "root").first()
+        admin = db.query(User).filter(User.role == "admin").first()
         if not admin:
-            hashed_pw = get_password_hash("root")
-            # default admin ต้อง role=admin เสมอ
-            new_admin = User(username="root", hashed_password=hashed_pw, role="admin", is_active=True)
+            bootstrap_username = os.getenv("INITIAL_ADMIN_USERNAME")
+            bootstrap_password = os.getenv("INITIAL_ADMIN_PASSWORD")
+            if not bootstrap_username or not bootstrap_password:
+                raise RuntimeError(
+                    "No admin user found. Set INITIAL_ADMIN_USERNAME and INITIAL_ADMIN_PASSWORD before first startup."
+                )
+            if len(bootstrap_password) < 12:
+                raise RuntimeError("INITIAL_ADMIN_PASSWORD must be at least 12 characters")
+            new_admin = User(
+                username=bootstrap_username,
+                hashed_password=get_password_hash(bootstrap_password),
+                role="admin",
+                is_active=True,
+            )
             db.add(new_admin)
             db.commit()
-            print("Default admin user created (root/root)")
+            print(f"Bootstrap admin user created ({bootstrap_username})")
     except Exception as e:
         print(f"Database initialization failed: {e}")
+        raise
+    finally:
+        db.close()
 
 # ============================================================
 # Auth
@@ -149,7 +165,7 @@ def login(
         max_age=60 * 24 * 7 * 60,
         expires=60 * 24 * 7 * 60,
         samesite="lax",
-        secure=False 
+        secure=should_use_secure_cookie()
     )
     
     return {"status": "success", "username": user.username, "role": user.role}
@@ -158,7 +174,7 @@ def login(
 @api_router.get("/logout") # รองรับ GET เผื่อกรณีมีการ redirect หรือเรียกผ่าน browser
 def logout(response: Response):
     """ลบ HttpOnly Cookie เพื่อทำการ logout"""
-    response.delete_cookie(key="access_token", httponly=True, samesite="lax")
+    response.delete_cookie(key="access_token", httponly=True, samesite="lax", secure=should_use_secure_cookie())
     return {"status": "success", "message": "Logged out successfully"}
 
 @api_router.get("/me")
@@ -335,62 +351,169 @@ def change_own_password(
     db.commit()
     return {"status": "success", "message": "Password changed successfully"}
 
+SYSTEM_KEYWORDS = [
+    "redroid-manager", "ws-scrcpy", "mariadb", "mysql",
+    "nginx", "postgres", "redis", "mongo"
+]
+
+
+def get_allowed_device_names(db: Session, current_user: User):
+    if current_user.role == "admin":
+        return None
+    assignments = db.query(UserDevice).filter(UserDevice.user_id == current_user.id).all()
+    return {a.device_name for a in assignments}
+
+
+def is_managed_redroid_container(container):
+    image_name = container.attrs.get("Config", {}).get("Image", "")
+    is_system = any(kw in container.name.lower() for kw in SYSTEM_KEYWORDS)
+    is_system = is_system or any(kw in image_name.lower() for kw in ["ws-scrcpy", "mariadb", "nginx"])
+    if is_system:
+        return False
+    return "redroid" in image_name.lower()
+
+
+def get_container_ip(container):
+    networks = container.attrs.get("NetworkSettings", {}).get("Networks", {})
+    if not networks:
+        return ""
+    return list(networks.values())[0].get("IPAddress", "")
+
+
+def get_container_port(container):
+    ports = container.ports
+    if "5555/tcp" in ports and ports["5555/tcp"]:
+        return ports["5555/tcp"][0].get("HostPort")
+    return None
+
+
+def get_ws_scrcpy_container(include_stopped=False):
+    containers = client.containers.list(all=include_stopped)
+    return next((c for c in containers if "ws-scrcpy" in c.name), None)
+
+
+def get_adb_devices(ws_scrcpy_container):
+    if not ws_scrcpy_container or ws_scrcpy_container.status != "running":
+        return {}, ""
+
+    exit_code, output = ws_scrcpy_container.exec_run("adb devices")
+    raw_output = (output or b"").decode("utf-8", errors="replace").strip()
+    if exit_code != 0:
+        return {}, raw_output
+
+    devices = {}
+    for line in raw_output.splitlines():
+        clean_line = line.strip()
+        if not clean_line or clean_line.lower().startswith("list of devices"):
+            continue
+        if "\t" not in clean_line:
+            continue
+        serial, state = clean_line.split("\t", 1)
+        devices[serial.strip()] = state.strip()
+    return devices, raw_output
+
+
+def build_device_payload(container, ws_scrcpy_running, adb_devices):
+    image_name = container.attrs.get("Config", {}).get("Image", "")
+    container_ip = get_container_ip(container)
+    adb_serial = f"{container_ip}:5555" if container_ip else None
+    adb_state = adb_devices.get(adb_serial, "disconnected") if adb_serial else "disconnected"
+    is_running = container.status == "running"
+    has_ip = bool(container_ip)
+    adb_connected = adb_state == "device"
+    stream_ready = is_running and has_ip and adb_connected and ws_scrcpy_running
+
+    if not is_running:
+        runtime_stage = "stopped"
+    elif not has_ip:
+        runtime_stage = "booting"
+    elif adb_connected and ws_scrcpy_running:
+        runtime_stage = "stream_ready"
+    elif adb_connected:
+        runtime_stage = "adb_connected"
+    else:
+        runtime_stage = "running"
+
+    status_labels = {
+        "stopped": "Stopped",
+        "booting": "Booting",
+        "running": "Running",
+        "adb_connected": "ADB Connected",
+        "stream_ready": "Stream Ready",
+    }
+
+    available_actions = []
+    if is_running:
+        available_actions.extend(["stop", "restart", "connect"])
+    else:
+        available_actions.append("start")
+    available_actions.append("delete")
+    if is_running:
+        available_actions.append("install_apk")
+
+    return {
+        "id": container.id[:12],
+        "name": container.name,
+        "status": container.status,
+        "runtime_stage": runtime_stage,
+        "status_label": status_labels.get(runtime_stage, container.status.title()),
+        "port": get_container_port(container),
+        "ip": container_ip,
+        "image": image_name,
+        "adb_serial": adb_serial,
+        "adb_state": adb_state,
+        "started_at": container.attrs.get("State", {}).get("StartedAt"),
+        "available_actions": available_actions,
+        "checks": {
+            "container_running": is_running,
+            "has_ip": has_ip,
+            "adb_connected": adb_connected,
+            "ws_scrcpy_running": ws_scrcpy_running,
+            "stream_ready": stream_ready,
+        }
+    }
+
+
+def get_device_by_id(device_id: str):
+    container = client.containers.get(device_id)
+    if not is_managed_redroid_container(container):
+        raise HTTPException(status_code=404, detail="Device not found")
+    return container
+
+
+def ensure_device_access(db: Session, current_user: User, container):
+    if current_user.role == "admin":
+        return
+    has_permission = db.query(UserDevice).filter(
+        UserDevice.user_id == current_user.id,
+        UserDevice.device_name == container.name
+    ).first()
+    if not has_permission:
+        raise HTTPException(status_code=403, detail="ACCESS_DENIED")
+
+
 @api_router.get("/devices")
 def get_devices(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """ดึงรายการ Redroid containers"""
     if not client:
         return {"status": "error", "message": "Docker client not connected"}
 
-    allowed_names = []
-    if current_user.role != "admin":
-        assignments = db.query(UserDevice).filter(UserDevice.user_id == current_user.id).all()
-        allowed_names = [a.device_name for a in assignments]
-
+    allowed_names = get_allowed_device_names(db, current_user)
     devices = []
     try:
+        ws_scrcpy = get_ws_scrcpy_container(include_stopped=True)
+        ws_scrcpy_running = bool(ws_scrcpy and ws_scrcpy.status == "running")
+        adb_devices, _ = get_adb_devices(ws_scrcpy)
         containers = client.containers.list(all=True)
-        
-        # รายชื่อ keyword ที่บ่งบอกว่าเป็น container ของระบบจัดการ ไม่ใช่ Android
-        SYSTEM_KEYWORDS = [
-            "redroid-manager", "ws-scrcpy", "mariadb", "mysql",
-            "nginx", "postgres", "redis", "mongo"
-        ]
-        
-        for c in containers:
-            if current_user.role != "admin" and c.name not in allowed_names:
+
+        for container in containers:
+            if allowed_names is not None and container.name not in allowed_names:
                 continue
-                
+            if not is_managed_redroid_container(container):
+                continue
+
             try:
-                image_name = c.attrs.get('Config', {}).get('Image', '')
-                
-                # ข้าม container ระบบ — เช็คทั้ง image name และ container name
-                is_system = any(kw in c.name.lower() for kw in SYSTEM_KEYWORDS)
-                is_system = is_system or any(kw in image_name.lower() for kw in ["ws-scrcpy", "mariadb", "nginx"])
-                if is_system:
-                    continue
-
-                # เป็น Android container ถ้า image มีคำว่า redroid
-                if 'redroid' not in image_name.lower():
-                    continue
-
-                ports = c.ports
-                adb_port = None
-                if '5555/tcp' in ports and ports['5555/tcp']:
-                    adb_port = ports['5555/tcp'][0]['HostPort']
-
-                container_ip = ""
-                networks = c.attrs.get('NetworkSettings', {}).get('Networks', {})
-                if networks:
-                    container_ip = list(networks.values())[0].get('IPAddress', '')
-
-                devices.append({
-                    "id": c.id[:12],
-                    "name": c.name,
-                    "status": c.status,
-                    "port": adb_port,
-                    "ip": container_ip,
-                    "image": image_name
-                })
+                devices.append(build_device_payload(container, ws_scrcpy_running, adb_devices))
             except Exception:
                 continue
 
@@ -410,22 +533,20 @@ async def auto_connect_new_device(device_id: str):
         # รอประมาณ 10 วินาทีเพื่อให้ Android บูต ADB Daemon ขึ้นมา
         await asyncio.sleep(10)
         
-        container = client.containers.get(device_id)
-        networks = container.attrs.get('NetworkSettings', {}).get('Networks', {})
-        target_ip = None
-        if networks:
-            target_ip = list(networks.values())[0].get('IPAddress')
-            
+        container = get_device_by_id(device_id)
+        target_ip = get_container_ip(container)
+
         if not target_ip:
             return
 
         # ค้นหา ws-scrcpy container
-        ws_scrcpy = next((c for c in client.containers.list() if 'ws-scrcpy' in c.name), None)
+        ws_scrcpy = get_ws_scrcpy_container()
         if ws_scrcpy:
             # พยายามต่อ ADB (อาจจะลองซ้ำ 2 ครั้งเผื่อเครื่องยังไม่พร้อม)
             for _ in range(2):
                 exit_code, output = ws_scrcpy.exec_run(f"adb connect {target_ip}:5555")
-                if exit_code == 0 and b"connected to" in output:
+                message = (output or b"").decode("utf-8", errors="replace").lower()
+                if exit_code == 0 and ("connected to" in message or "already connected to" in message):
                     print(f"AUTO_CONNECT: Success for {target_ip}")
                     break
                 await asyncio.sleep(5)
@@ -577,6 +698,69 @@ def create_device(device: DeviceCreate, background_tasks: BackgroundTasks, curre
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@api_router.post("/devices/{device_id}/start")
+def start_device(device_id: str, background_tasks: BackgroundTasks, current_user: User = Depends(require_admin)):
+    """Start a stopped Redroid container"""
+    if not client:
+        raise HTTPException(status_code=500, detail="Docker client not connected")
+
+    try:
+        container = get_device_by_id(device_id)
+        if container.status == "running":
+            return {"status": "success", "message": f"Device {container.name} is already running"}
+
+        container.start()
+        background_tasks.add_task(auto_connect_new_device, container.id)
+        return {"status": "success", "message": f"Device {container.name} started"}
+    except HTTPException:
+        raise
+    except docker.errors.NotFound:
+        raise HTTPException(status_code=404, detail="Device not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/devices/{device_id}/stop")
+def stop_device(device_id: str, current_user: User = Depends(require_admin)):
+    """Stop a running Redroid container"""
+    if not client:
+        raise HTTPException(status_code=500, detail="Docker client not connected")
+
+    try:
+        container = get_device_by_id(device_id)
+        if container.status != "running":
+            return {"status": "success", "message": f"Device {container.name} is already stopped"}
+
+        container.stop()
+        return {"status": "success", "message": f"Device {container.name} stopped"}
+    except HTTPException:
+        raise
+    except docker.errors.NotFound:
+        raise HTTPException(status_code=404, detail="Device not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/devices/{device_id}/restart")
+def restart_device(device_id: str, background_tasks: BackgroundTasks, current_user: User = Depends(require_admin)):
+    """Restart a Redroid container"""
+    if not client:
+        raise HTTPException(status_code=500, detail="Docker client not connected")
+
+    try:
+        container = get_device_by_id(device_id)
+        container.restart(timeout=10)
+        background_tasks.add_task(auto_connect_new_device, container.id)
+        return {"status": "success", "message": f"Device {container.name} restarted"}
+    except HTTPException:
+        raise
+    except docker.errors.NotFound:
+        raise HTTPException(status_code=404, detail="Device not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @api_router.delete("/devices/{device_id}")
 def delete_device(device_id: str, current_user: User = Depends(require_admin)):
     """ลบ Redroid container"""
@@ -584,7 +768,7 @@ def delete_device(device_id: str, current_user: User = Depends(require_admin)):
         raise HTTPException(status_code=500, detail="Docker client not connected")
 
     try:
-        container = client.containers.get(device_id)
+        container = get_device_by_id(device_id)
         
         # ป้องกันการลบ container หลักของระบบ
         if "redroid-manager" in container.name or "ws-scrcpy" in container.name or "mariadb" in container.name:
@@ -593,10 +777,56 @@ def delete_device(device_id: str, current_user: User = Depends(require_admin)):
         container.stop()
         container.remove()
         return {"status": "success", "message": f"Device {device_id} deleted"}
+    except HTTPException:
+        raise
     except docker.errors.NotFound:
         raise HTTPException(status_code=404, detail="Device not found")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.get("/devices/{device_id}/diagnostics")
+def get_device_diagnostics(
+    device_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Return health checks and recent logs for a device"""
+    if not client:
+        raise HTTPException(status_code=500, detail="Docker client not connected")
+
+    try:
+        container = get_device_by_id(device_id)
+        ensure_device_access(db, current_user, container)
+
+        ws_scrcpy = get_ws_scrcpy_container(include_stopped=True)
+        ws_scrcpy_running = bool(ws_scrcpy and ws_scrcpy.status == "running")
+        adb_devices, adb_raw_output = get_adb_devices(ws_scrcpy)
+        payload = build_device_payload(container, ws_scrcpy_running, adb_devices)
+        container_logs = (container.logs(tail=80) or b"").decode("utf-8", errors="replace")
+
+        ws_logs = ""
+        if ws_scrcpy:
+            ws_logs = (ws_scrcpy.logs(tail=20) or b"").decode("utf-8", errors="replace")
+
+        return {
+            "status": "success",
+            "data": {
+                "device": payload,
+                "checks": payload["checks"],
+                "adb_raw_output": adb_raw_output,
+                "container_logs": container_logs,
+                "ws_scrcpy_running": ws_scrcpy_running,
+                "ws_scrcpy_logs": ws_logs,
+            }
+        }
+    except HTTPException:
+        raise
+    except docker.errors.NotFound:
+        raise HTTPException(status_code=404, detail="Device not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @api_router.post("/devices/{device_id}/connect")
 def connect_ws_scrcpy(
@@ -609,32 +839,121 @@ def connect_ws_scrcpy(
         raise HTTPException(status_code=500, detail="Docker client not connected")
 
     try:
-        target_container = client.containers.get(device_id)
-        if current_user.role != "admin":
-            has_permission = db.query(UserDevice).filter(
-                UserDevice.user_id == current_user.id,
-                UserDevice.device_name == target_container.name
-            ).first()
-            if not has_permission:
-                raise HTTPException(status_code=403, detail="ACCESS_DENIED")
+        target_container = get_device_by_id(device_id)
+        ensure_device_access(db, current_user, target_container)
 
-        target_ip = None
-        networks = target_container.attrs['NetworkSettings']['Networks']
-        if networks:
-            target_ip = list(networks.values())[0]['IPAddress']
+        if target_container.status != "running":
+            raise HTTPException(status_code=400, detail="Device is not running")
+
+        target_ip = get_container_ip(target_container)
 
         if not target_ip:
             raise HTTPException(status_code=400, detail="Could not determine container IP")
 
-        ws_scrcpy = next((c for c in client.containers.list() if 'ws-scrcpy' in c.name), None)
+        ws_scrcpy = get_ws_scrcpy_container()
         if not ws_scrcpy:
             raise HTTPException(status_code=404, detail="ws-scrcpy container not found")
 
         exit_code, output = ws_scrcpy.exec_run(f"adb connect {target_ip}:5555")
-        return {"status": "success", "message": output.decode('utf-8')}
+        message = (output or b"").decode("utf-8", errors="replace")
+        if exit_code != 0 and "already connected to" not in message.lower():
+            raise HTTPException(status_code=502, detail=message or "ADB connect failed")
+        return {"status": "success", "message": message}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# ============================================================
+# Thumbnail / Snapshot cache
+# ============================================================
+# in-memory cache: device_id -> (jpeg_bytes, timestamp)
+_thumbnail_cache: dict = {}
+THUMBNAIL_TTL = 3.0  # �Թҷ� � ��ͧ�ѹ hammer �ҡ client ���µ��
+
+@api_router.get("/devices/{device_id}/thumbnail")
+async def get_device_thumbnail(
+    device_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """�׹ JPEG snapshot �ͧ˹�Ҩ� Redroid container ��ҹ adb screencap
+    ������Ѻ Preview Wall � �ҡ��� iframe �ҡ"""
+    if not client:
+        raise HTTPException(status_code=500, detail="Docker client not connected")
+
+    try:
+        container = get_device_by_id(device_id)
+        ensure_device_access(db, current_user, container)
+
+        if container.status != "running":
+            raise HTTPException(status_code=503, detail="Device not running")
+
+        # ��Ǩ cache ��͹
+        cached = _thumbnail_cache.get(device_id)
+        if cached:
+            jpeg_bytes, cached_at = cached
+            if time.monotonic() - cached_at < THUMBNAIL_TTL:
+                return Response(
+                    content=jpeg_bytes,
+                    media_type="image/jpeg",
+                    headers={"Cache-Control": f"max-age={int(THUMBNAIL_TTL)}"}
+                )
+
+        # �֧ IP �ͧ container
+        container_ip = get_container_ip(container)
+        if not container_ip:
+            raise HTTPException(status_code=503, detail="Device has no IP yet")
+
+        adb_serial = f"{container_ip}:5555"
+
+        # �ѹ adb screencap ��ҹ ws-scrcpy container
+        ws_scrcpy = get_ws_scrcpy_container()
+        if not ws_scrcpy or ws_scrcpy.status != "running":
+            raise HTTPException(status_code=503, detail="ws-scrcpy not running")
+
+        loop = asyncio.get_event_loop()
+
+        def _capture():
+            exit_code, raw = ws_scrcpy.exec_run(
+                f"adb -s {adb_serial} exec-out screencap -p",
+                demux=False
+            )
+            if exit_code != 0 or not raw:
+                return None
+            return raw
+
+        png_bytes = await loop.run_in_executor(None, _capture)
+        if not png_bytes or len(png_bytes) < 100:
+            raise HTTPException(status_code=503, detail="screencap failed or device not ready")
+
+        # �ŧ PNG  JPEG ���� Pillow ����Ŵ size
+        try:
+            from PIL import Image
+            img = Image.open(io.BytesIO(png_bytes))
+            buf = io.BytesIO()
+            img.convert("RGB").save(buf, format="JPEG", quality=70, optimize=True)
+            jpeg_bytes = buf.getvalue()
+        except Exception:
+            # ��� Pillow �ѧ �� PNG ��Ѻ�᷹
+            jpeg_bytes = png_bytes
+
+        # �ѹ�֡ cache
+        _thumbnail_cache[device_id] = (jpeg_bytes, time.monotonic())
+
+        return Response(
+            content=jpeg_bytes,
+            media_type="image/jpeg",
+            headers={"Cache-Control": f"max-age={int(THUMBNAIL_TTL)}"}
+        )
+
+    except HTTPException:
+        raise
+    except docker.errors.NotFound:
+        raise HTTPException(status_code=404, detail="Device not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 @api_router.post("/devices/{device_id}/install-apk")
 async def install_apk(
     device_id: str,
@@ -650,20 +969,14 @@ async def install_apk(
         raise HTTPException(status_code=400, detail="File must be an .apk file")
 
     try:
-        target_container = client.containers.get(device_id)
+        target_container = get_device_by_id(device_id)
 
         # ตรวจสอบว่า container กำลัง running
         if target_container.status != "running":
             raise HTTPException(status_code=400, detail="Device is not running")
 
         # ตรวจสอบ permission สำหรับ non-admin
-        if current_user.role != "admin":
-            has_permission = db.query(UserDevice).filter(
-                UserDevice.user_id == current_user.id,
-                UserDevice.device_name == target_container.name
-            ).first()
-            if not has_permission:
-                raise HTTPException(status_code=403, detail="ACCESS_DENIED")
+        ensure_device_access(db, current_user, target_container)
 
         # อ่านไฟล์ APK
         apk_data = await apk_file.read()

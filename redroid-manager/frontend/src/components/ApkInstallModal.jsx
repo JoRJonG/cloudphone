@@ -13,7 +13,7 @@ export default function ApkInstallModal({ device, onClose, showNotification }) {
   const [progress, setProgress] = useState(0);
   const fileInputRef = useRef(null);
 
-  const handleFile = (file) => {
+  const handleFile = useCallback((file) => {
     if (!file) return;
     if (!file.name.toLowerCase().endsWith('.apk')) {
       showNotification('ERR: ไฟล์ต้องเป็น .apk เท่านั้น');
@@ -23,14 +23,14 @@ export default function ApkInstallModal({ device, onClose, showNotification }) {
     setStatus('idle');
     setResultMessage('');
     setProgress(0);
-  };
+  }, [showNotification]);
 
   const handleDrop = useCallback((e) => {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
     handleFile(file);
-  }, []);
+  }, [handleFile]);
 
   const handleDragOver = useCallback((e) => {
     e.preventDefault();

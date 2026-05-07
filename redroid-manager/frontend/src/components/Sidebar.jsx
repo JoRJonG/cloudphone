@@ -1,20 +1,35 @@
-import { LogOut, Plus, Activity, Users } from 'lucide-react';
+import { useState } from 'react';
+import { LogOut, Plus, Activity, Users, Search, Filter } from 'lucide-react';
 import DeviceList from './DeviceList';
 import DeviceForm from './DeviceForm';
 
-/**
- * Sidebar
- * เพิ่มปุ่ม USER_MGMT ที่แสดงเฉพาะ admin เท่านั้น
- */
-export default function Sidebar({ 
-  devices, loading, selectedDevice, onSelectDevice, 
-  onLogout, showAddForm, setShowAddForm, 
-  handleAddDevice, isAdding, 
-  handleDeleteDevice, connectAdb,
-  currentUser, onOpenUserMgmt, onInstallApk
+export default function Sidebar({
+  devices,
+  loading,
+  selectedDevice,
+  onSelectDevice,
+  onLogout,
+  showAddForm,
+  setShowAddForm,
+  handleAddDevice,
+  isAdding,
+  handleDeleteDevice,
+  connectAdb,
+  currentUser,
+  onOpenUserMgmt,
+  onInstallApk,
+  onDeviceAction,
+  activeDeviceAction
 }) {
-  // ใช้ optional chaining เผื่อ role เป็น undefined ตอน token เก่า
+  const [search, setSearch] = useState('');
+  const [stageFilter, setStageFilter] = useState('all');
   const isAdmin = currentUser?.role === 'admin';
+
+  const filteredDevices = devices.filter((device) => {
+    const matchesSearch = device.name.toLowerCase().includes(search.trim().toLowerCase());
+    const matchesStage = stageFilter === 'all' || device.runtime_stage === stageFilter;
+    return matchesSearch && matchesStage;
+  });
 
   return (
     <div className="sidebar">
@@ -24,11 +39,10 @@ export default function Sidebar({
           <h1>REDROID<span className="text-neon">_CTRL</span></h1>
         </div>
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-          {/* ปุ่ม USER_MGMT แสดงเฉพาะ role=admin */}
           {isAdmin && (
-            <button 
-              className="btn-icon" 
-              onClick={onOpenUserMgmt} 
+            <button
+              className="btn-icon"
+              onClick={onOpenUserMgmt}
               title="User Management"
               style={{ color: 'var(--text-muted)' }}
             >
@@ -41,15 +55,14 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* ปุ่ม Deploy Node เห็นเฉพาะ admin */}
       {isAdmin && (
         <div className="sidebar-controls">
-          <button 
+          <button
             className={`btn-glitch w-full ${showAddForm ? 'active' : ''}`}
             onClick={() => setShowAddForm(!showAddForm)}
           >
             <span className="btn-text">
-              <Plus size={18} style={{ display: 'inline', marginRight: '8px' }} /> 
+              <Plus size={18} style={{ display: 'inline', marginRight: '8px' }} />
               {showAddForm ? 'CANCEL_DEPLOY' : 'DEPLOY_NEW_NODE'}
             </span>
           </button>
@@ -57,31 +70,62 @@ export default function Sidebar({
       )}
 
       {showAddForm && isAdmin && (
-        <DeviceForm 
-          onAdd={handleAddDevice} 
-          isAdding={isAdding} 
-          onCancel={() => setShowAddForm(false)} 
+        <DeviceForm
+          onAdd={handleAddDevice}
+          isAdding={isAdding}
+          onCancel={() => setShowAddForm(false)}
         />
       )}
 
       <div className="device-list-container">
         <div className="list-header">
-          <span className="text-muted text-xs tracking-widest">ACTIVE_NODES [{devices.length}]</span>
-          {/* แสดง badge ของ current user */}
-          {currentUser?.role && (
-            <span className={`role-badge ${currentUser.role}`} style={{ fontSize: '0.6rem', padding: '2px 8px' }}>
-              {currentUser.role.toUpperCase()}
+          <div className="list-header-row">
+            <span className="text-muted text-xs tracking-widest">
+              ACTIVE_NODES [{filteredDevices.length}/{devices.length}]
             </span>
-          )}
+            {currentUser?.role && (
+              <span className={`role-badge ${currentUser.role}`} style={{ fontSize: '0.6rem', padding: '2px 8px' }}>
+                {currentUser.role.toUpperCase()}
+              </span>
+            )}
+          </div>
+
+          <div className="device-toolbar">
+            <label className="sidebar-search">
+              <Search size={14} />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="SEARCH_NODE"
+                autoComplete="off"
+              />
+            </label>
+
+            <label className="sidebar-filter">
+              <Filter size={13} />
+              <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value)}>
+                <option value="all">ALL</option>
+                <option value="stream_ready">STREAM_READY</option>
+                <option value="adb_connected">ADB_CONNECTED</option>
+                <option value="running">RUNNING</option>
+                <option value="booting">BOOTING</option>
+                <option value="stopped">STOPPED</option>
+              </select>
+            </label>
+          </div>
         </div>
-        <DeviceList 
-          devices={devices}
+
+        <DeviceList
+          devices={filteredDevices}
           loading={loading}
           selectedDevice={selectedDevice}
           onSelectDevice={onSelectDevice}
           onConnectAdb={connectAdb}
           onDeleteDevice={isAdmin ? handleDeleteDevice : null}
           onInstallApk={onInstallApk}
+          onDeviceAction={isAdmin ? onDeviceAction : null}
+          activeDeviceAction={activeDeviceAction}
         />
       </div>
     </div>

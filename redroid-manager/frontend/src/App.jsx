@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import LoginForm from './components/LoginForm';
 import Sidebar from './components/Sidebar';
 import StreamViewer from './components/StreamViewer';
@@ -9,100 +9,183 @@ import './App.css';
 
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
-  const [isInitialLoading, setIsInitialLoading] = useState(true); // สำหรับโหลด session ตอนแรก
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDevice, setSelectedDevice] = useState(null);
+  const [selectedDiagnostics, setSelectedDiagnostics] = useState(null);
+  const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
 
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [notification, setNotification] = useState(null);
+  const [activeDeviceAction, setActiveDeviceAction] = useState(null);
 
-  // State สำหรับ User Management Modal
   const [showUserMgmt, setShowUserMgmt] = useState(false);
-
-  // State สำหรับ APK Install Modal
   const [apkTargetDevice, setApkTargetDevice] = useState(null);
+  const reconnectAttemptsRef = useRef({});
 
   const showNotification = useCallback((msg) => {
     setNotification(msg);
     setTimeout(() => setNotification(null), 4000);
   }, []);
 
+  const syncSelectedDevice = useCallback((nextDevices) => {
+    setSelectedDevice((prevSelected) => {
+      if (!prevSelected) {
+        return null;
+      }
+      return nextDevices.find((device) => device.id === prevSelected.id) || null;
+    });
+  }, []);
+
+  const handleSelectDevice = useCallback((device) => {
+    setSelectedDevice(device);
+    setSelectedDiagnostics(null);
+  }, []);
+
   const handleLogout = useCallback(async () => {
     try {
-      // เรียก logout API เพื่อลบ cookie
       await fetch('/api/logout', { method: 'POST', credentials: 'include' });
     } catch (err) {
-      console.error("Logout failed", err);
+      console.error('Logout failed', err);
     }
+
     setCurrentUser(null);
     setDevices([]);
     setSelectedDevice(null);
+    setSelectedDiagnostics(null);
     setShowUserMgmt(false);
   }, []);
 
-  const fetchDevices = useCallback(async () => {
-    if (!currentUser) return;
+  const fetchDevices = useCallback(async (options = {}) => {
+    if (!currentUser) {
+      return [];
+    }
+
+    const { silent = false } = options;
+    if (!silent && devices.length === 0) {
+      setLoading(true);
+    }
+
     try {
       const res = await fetch('/api/devices', { credentials: 'include' });
-      if (res.status === 401) { handleLogout(); return; }
-      // ตรวจสอบ Content-Type เพื่อป้องกัน parse error กรณี backend ส่ง HTML
+      if (res.status === 401) {
+        handleLogout();
+        return [];
+      }
+
       const contentType = res.headers.get('content-type') || '';
-      if (!contentType.includes('application/json')) return;
+      if (!contentType.includes('application/json')) {
+        return [];
+      }
+
       const data = await res.json();
-      if (data.status === 'success') setDevices(data.data);
+      if (data.status === 'success') {
+        setDevices(data.data);
+        syncSelectedDevice(data.data);
+        return data.data;
+      }
     } catch (err) {
-      console.warn("Failed to fetch devices:", err.message);
+      console.warn('Failed to fetch devices:', err.message);
     } finally {
       setLoading(false);
     }
-  }, [currentUser, handleLogout]);
 
-  // ตรวจสอบ Session ตอนเข้าเว็บครั้งแรก
+    return [];
+  }, [currentUser, devices.length, handleLogout, syncSelectedDevice]);
+
+  const fetchDiagnostics = useCallback(async (deviceId, options = {}) => {
+    if (!deviceId) {
+      setSelectedDiagnostics(null);
+      return null;
+    }
+
+    const { silent = false } = options;
+    if (!silent) {
+      setDiagnosticsLoading(true);
+    }
+
+    try {
+      const res = await fetch(`/api/devices/${deviceId}/diagnostics`, { credentials: 'include' });
+      if (res.status === 401) {
+        handleLogout();
+        return null;
+      }
+
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
+        setSelectedDiagnostics(data.data);
+        return data.data;
+      }
+    } catch (err) {
+      console.warn('Failed to fetch diagnostics:', err.message);
+    } finally {
+      setDiagnosticsLoading(false);
+    }
+
+    return null;
+  }, [handleLogout]);
+
   useEffect(() => {
     const checkSession = async () => {
       try {
         const res = await fetch('/api/me', { credentials: 'include' });
-        // ตรวจสอบ Content-Type ก่อน parse JSON เพื่อป้องกันกรณีที่ backend ยังไม่พร้อม
         const contentType = res.headers.get('content-type') || '';
         if (!contentType.includes('application/json')) {
-          // Backend ไม่พร้อม หรือให้ HTML — ไม่ต้อง throw เพียงแค่รอให้ผ่าน
           return;
         }
         if (res.ok) {
           const data = await res.json();
           setCurrentUser(data.data);
         }
-        // 401 = ยังไม่ได้ login เป็นเรื่องปกติ ไม่ต้อง log error
       } catch (err) {
-        // เป็น network error จริงๆ (เช่น backend ไม่รัน)
-        console.warn("Session check: backend not reachable", err.message);
+        console.warn('Session check: backend not reachable', err.message);
       } finally {
         setIsInitialLoading(false);
       }
     };
+
     checkSession();
   }, []);
 
   useEffect(() => {
-    if (currentUser) {
-      // เรียก fetch ครั้งแรก
-      const timer = setTimeout(() => {
-        fetchDevices();
-      }, 0);
-
-      // polling ทุก 5 วินาที
-      const interval = setInterval(fetchDevices, 5000);
-      return () => {
-        clearTimeout(timer);
-        clearInterval(interval);
-      };
+    if (!currentUser) {
+      return undefined;
     }
+
+    const initialFetch = setTimeout(() => {
+      fetchDevices();
+    }, 0);
+    const interval = setInterval(() => {
+      fetchDevices({ silent: true });
+    }, 5000);
+
+    return () => {
+      clearTimeout(initialFetch);
+      clearInterval(interval);
+    };
   }, [currentUser, fetchDevices]);
 
-  // ===== Login =====
+  useEffect(() => {
+    if (!selectedDevice?.id) {
+      return undefined;
+    }
+
+    const initialFetch = setTimeout(() => {
+      fetchDiagnostics(selectedDevice.id);
+    }, 0);
+    const interval = setInterval(() => {
+      fetchDiagnostics(selectedDevice.id, { silent: true });
+    }, 7000);
+
+    return () => {
+      clearTimeout(initialFetch);
+      clearInterval(interval);
+    };
+  }, [selectedDevice?.id, fetchDiagnostics]);
+
   const handleLogin = async (username, password) => {
     setIsLoggingIn(true);
     try {
@@ -114,7 +197,7 @@ function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: formData,
-        credentials: 'include' // ส่ง/รับ cookie
+        credentials: 'include'
       });
       const data = await res.json();
 
@@ -122,7 +205,7 @@ function App() {
         setCurrentUser({ username: data.username, role: data.role });
         showNotification('SYS_ACCESS_GRANTED');
       } else {
-        throw new Error(data.detail || "ACCESS_DENIED");
+        throw new Error(data.detail || 'ACCESS_DENIED');
       }
     } catch (err) {
       showNotification(`ERR: ${err.message}`);
@@ -131,31 +214,39 @@ function App() {
     }
   };
 
-  // ===== Device Handlers =====
   const handleAddDevice = async (name, port, features = []) => {
-    if (!name || !port) return;
+    const trimmedName = name.trim();
+    const parsedPort = Number.parseInt(port, 10);
+
+    if (!trimmedName) {
+      showNotification('ERR: NODE_NAME_REQUIRED');
+      return;
+    }
+    if (!Number.isInteger(parsedPort) || parsedPort < 1000 || parsedPort > 65535) {
+      showNotification('ERR: INVALID_ADB_PORT');
+      return;
+    }
+
     setIsAdding(true);
     try {
       const res = await fetch('/api/devices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          name, 
-          port: parseInt(port),
+        body: JSON.stringify({
+          name: trimmedName,
+          port: parsedPort,
           features
         }),
         credentials: 'include'
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "DEPLOY_FAILED");
-      showNotification(`NODE [${name}] DEPLOYED`);
+      if (!res.ok) {
+        throw new Error(data.detail || 'DEPLOY_FAILED');
+      }
+
+      showNotification(`NODE [${trimmedName}] DEPLOYED`);
       setShowAddForm(false);
-      fetchDevices();
-      // รอให้ polling ดึงข้อมูล device จริงก่อน แล้วค่อย connect
-      // ไม่ใช้ ip: '' เพราะจะทำให้ ws-scrcpy ได้ udid เป็น ":5555" → Invalid URL error
-      if (data.id) setTimeout(() => {
-        fetchDevices();
-      }, 3000);
+      await fetchDevices();
     } catch (err) {
       showNotification(`ERR: ${err.message}`);
     } finally {
@@ -164,70 +255,126 @@ function App() {
   };
 
   const handleDeleteDevice = async (id, name) => {
-    if (!window.confirm(`CONFIRM_DELETE_NODE: ${name}?`)) return;
+    if (!window.confirm(`CONFIRM_DELETE_NODE: ${name}?`)) {
+      return;
+    }
+
     try {
       const res = await fetch(`/api/devices/${id}`, {
         method: 'DELETE',
         credentials: 'include'
       });
+      const data = await res.json();
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.detail);
+        throw new Error(data.detail || 'DELETE_FAILED');
       }
+
       showNotification(`NODE [${name}] TERMINATED`);
-      setSelectedDevice(prev => prev?.id === id ? null : prev);
-      fetchDevices();
+      setSelectedDiagnostics(null);
+      await fetchDevices();
     } catch (err) {
       showNotification(`ERR: ${err.message}`);
     }
   };
 
-  // รับ device object ทั้งก้อนเพื่อ auto-select หลัง connect สำเร็จ
-  const connectAdb = useCallback(async (device) => {
+  const connectAdb = useCallback(async (device, options = {}) => {
+    const { silent = false } = options;
     try {
-      showNotification(`INITIATING_ADB_UPLINK...`);
-      const res = await fetch(`/api/devices/${device.id}/connect`, { 
+      if (!silent) {
+        showNotification('INITIATING_ADB_UPLINK...');
+      }
+      const res = await fetch(`/api/devices/${device.id}/connect`, {
         method: 'POST',
         credentials: 'include'
       });
-      if (res.ok) {
-        showNotification(`ADB_UPLINK_ESTABLISHED`);
-        // ดึง device list ล่าสุดจาก API เพื่อให้ได้ ip จริง
-        // ไม่ใช้ device object เดิม เพราะอาจมี ip เป็น null/'' ซึ่งทำให้
-        // ws-scrcpy สร้าง new URL(":5555") → TypeError: Invalid URL
-        try {
-          const devRes = await fetch('/api/devices', { credentials: 'include' });
-          if (devRes.ok) {
-            const devData = await devRes.json();
-            if (devData.status === 'success') {
-              setDevices(devData.data);
-              // หา device ที่อัปเดตแล้วเพื่อเอา ip จริง
-              const updatedDevice = devData.data.find(d => d.id === device.id);
-              if (updatedDevice?.ip) {
-                setSelectedDevice(updatedDevice);
-              } else {
-                // ยังไม่มี ip — รอ polling รอบถัดไปแทน
-                showNotification(`ADB_LINKED — AWAITING_IP...`);
-              }
-            }
-          }
-        } catch {
-          // fallback: ใช้ device เดิมแต่ StreamViewer จะ guard ip เองอยู่แล้ว
-          setSelectedDevice(device);
-        }
-      } else {
-        showNotification(`ERR_ADB_UPLINK_FAILED`);
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || 'ADB_CONNECT_FAILED');
       }
-    } catch {
-      showNotification(`ERR_ADB_UPLINK_FAILED`);
+
+      reconnectAttemptsRef.current[device.id] = 0;
+      if (!silent) {
+        showNotification('ADB_UPLINK_ESTABLISHED');
+      }
+      const refreshedDevices = await fetchDevices({ silent: true });
+      const updatedDevice = refreshedDevices.find((candidate) => candidate.id === device.id) || device;
+      setSelectedDevice(updatedDevice);
+      fetchDiagnostics(updatedDevice.id, { silent: true });
+    } catch (err) {
+      if (!silent) {
+        showNotification(`ERR: ${err.message}`);
+      }
     }
-  }, [showNotification]);
+  }, [fetchDevices, fetchDiagnostics, showNotification]);
+
+  useEffect(() => {
+    if (!currentUser || activeDeviceAction) {
+      return undefined;
+    }
+
+    Object.keys(reconnectAttemptsRef.current).forEach((deviceId) => {
+      const device = devices.find((item) => item.id === deviceId);
+      if (!device || !device.checks?.container_running || device.checks?.adb_connected) {
+        reconnectAttemptsRef.current[deviceId] = 0;
+      }
+    });
+
+    const candidate = devices.find((device) => (
+      device.available_actions?.includes('connect')
+      && device.checks?.container_running
+      && device.checks?.has_ip
+      && !device.checks?.adb_connected
+      && (reconnectAttemptsRef.current[device.id] || 0) < 3
+    ));
+
+    if (!candidate) {
+      return undefined;
+    }
+
+    reconnectAttemptsRef.current[candidate.id] = (reconnectAttemptsRef.current[candidate.id] || 0) + 1;
+    const timer = setTimeout(() => {
+      connectAdb(candidate, { silent: true });
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, [currentUser, devices, activeDeviceAction, connectAdb]);
+
+  const handleDeviceAction = useCallback(async (device, action) => {
+    const labels = {
+      start: 'STARTING_NODE',
+      stop: 'STOPPING_NODE',
+      restart: 'RESTARTING_NODE'
+    };
+
+    setActiveDeviceAction(`${action}:${device.id}`);
+    try {
+      const res = await fetch(`/api/devices/${device.id}/${action}`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || `${action.toUpperCase()}_FAILED`);
+      }
+
+      showNotification(labels[action] || data.message || 'NODE_UPDATED');
+      const refreshedDevices = await fetchDevices({ silent: true });
+      const updatedDevice = refreshedDevices.find((candidate) => candidate.id === device.id);
+      if (updatedDevice) {
+        setSelectedDevice(updatedDevice);
+        fetchDiagnostics(updatedDevice.id, { silent: true });
+      }
+    } catch (err) {
+      showNotification(`ERR: ${err.message}`);
+    } finally {
+      setActiveDeviceAction(null);
+    }
+  }, [fetchDevices, fetchDiagnostics, showNotification]);
 
   if (isInitialLoading) {
     return <div className="app-container cyber-theme"><div className="loading-overlay">SYNCHRONIZING_SESSION...</div></div>;
   }
 
-  // ===== Login screen =====
   if (!currentUser) {
     return (
       <>
@@ -241,11 +388,11 @@ function App() {
   return (
     <div className="app-container cyber-theme">
       <div className="noise-overlay"></div>
-      <Sidebar 
+      <Sidebar
         devices={devices}
         loading={loading}
         selectedDevice={selectedDevice}
-        onSelectDevice={setSelectedDevice}
+        onSelectDevice={handleSelectDevice}
         onLogout={handleLogout}
         showAddForm={showAddForm}
         setShowAddForm={setShowAddForm}
@@ -256,11 +403,23 @@ function App() {
         currentUser={currentUser}
         onOpenUserMgmt={() => setShowUserMgmt(true)}
         onInstallApk={(device) => setApkTargetDevice(device)}
+        onDeviceAction={handleDeviceAction}
+        activeDeviceAction={activeDeviceAction}
       />
-      <StreamViewer selectedDevice={selectedDevice} />
+      <StreamViewer
+        devices={devices}
+        selectedDevice={selectedDevice}
+        diagnostics={selectedDiagnostics}
+        diagnosticsLoading={diagnosticsLoading}
+        onSelectDevice={handleSelectDevice}
+        onConnectAdb={connectAdb}
+        onDeviceAction={handleDeviceAction}
+        activeDeviceAction={activeDeviceAction}
+        currentUser={currentUser}
+        onRefreshDiagnostics={() => (selectedDevice?.id ? fetchDiagnostics(selectedDevice.id) : null)}
+      />
       <Notification message={notification} />
 
-      {/* User Management Modal — render เมื่อ showUserMgmt=true */}
       {showUserMgmt && (
         <UserManagementModal
           currentUser={currentUser}
@@ -270,7 +429,6 @@ function App() {
         />
       )}
 
-      {/* APK Install Modal — render เมื่อเลือก device แล้ว */}
       {apkTargetDevice && (
         <ApkInstallModal
           device={apkTargetDevice}
