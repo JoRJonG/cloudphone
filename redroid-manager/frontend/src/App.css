@@ -1192,29 +1192,11 @@ input {
   border: 1px solid var(--panel-border);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
   flex-shrink: 0;
-  /* ไม่ใช้ overflow:hidden และ border-radius เพราะทำให้ touch coordinate offset */
-}
-
-.scrcpy-shell--auto {
-  width: min(calc(100% - 16px), calc((100vh - 120px) * 9 / 16));
-  aspect-ratio: 9 / 16;
-  max-height: calc(100vh - 120px);
-  height: auto;
-}
-
-/* สัดส่วนประมาณจอ + แถบเครื่องมือขวา */
-.scrcpy-shell--portrait {
-  width: min(520px, calc(100vw - 48px), calc((100vh - 120px) * 10 / 19));
-  aspect-ratio: 10 / 19;
-  max-height: calc(100vh - 120px);
-  height: auto;
-}
-
-.scrcpy-shell--landscape {
-  width: min(960px, calc(100vw - 48px), calc((100vh - 120px) * 20 / 9));
-  aspect-ratio: 20 / 9;
-  max-height: calc(100vh - 120px);
-  height: auto;
+  
+  /* Shrink-wrap ให้สเกลพอดีหน้าจอ */
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
 }
 
 .scrcpy-iframe {
