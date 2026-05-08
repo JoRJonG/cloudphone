@@ -18,6 +18,20 @@
 docker-compose up -d --build
 ```
 
+**หมายเหตุสำคัญสำหรับเซิร์ฟเวอร์ Ubuntu:**
+หากพบปัญหาไม่สามารถรันเครื่องแอนดรอยด์ได้ (ติดปัญหาเรื่อง BinderFS) ให้รันคำสั่งต่อไปนี้ในเซิร์ฟเวอร์:
+
+1. ติดตั้งโมดูลเคอร์เนลเสริม (Extra Modules)
+```bash
+apt update
+apt install linux-modules-extra-$(uname -r) -y
+```
+
+2. สั่งโหลดโมดูล Binder
+```bash
+modprobe binder_linux
+```
+
 ก่อนรันครั้งแรก ต้องกำหนดค่าใน `.env` อย่างน้อยดังนี้:
 
 ```bash
