@@ -32,6 +32,10 @@ app = FastAPI(title="Redroid Farm Manager API")
 
 # Image ที่ใช้สร้าง container ใหม่ (override ได้ด้วย env)
 REDROID_IMAGE = os.getenv("REDROID_IMAGE", "redroid/redroid:11.0.0-latest")
+ANDROID_MEMORY_LIMIT = os.getenv("ANDROID_MEMORY_LIMIT", "4g")
+ANDROID_SWAP_LIMIT = os.getenv("ANDROID_SWAP_LIMIT", ANDROID_MEMORY_LIMIT)
+ANDROID_SHM_SIZE = os.getenv("ANDROID_SHM_SIZE", "1g")
+ANDROID_CPU_CORES = int(os.getenv("ANDROID_CPU_CORES", "4"))
 
 # สร้าง APIRouter สำหรับทุกเส้นทางที่ขึ้นต้นด้วย /api
 api_router = APIRouter(prefix="/api")
@@ -674,6 +678,12 @@ def create_device(device: DeviceCreate, background_tasks: BackgroundTasks, curre
             "androidboot.redroid_gpu_mode=auto",
             "qemu=1",
             "androidboot.use_memfd=1",
+            "dalvik.vm.heapstartsize=16m",
+            "dalvik.vm.heapgrowthlimit=384m",
+            "dalvik.vm.heapsize=1024m",
+            "dalvik.vm.heaptargetutilization=0.75",
+            "dalvik.vm.heapminfree=512k",
+            "dalvik.vm.heapmaxfree=8m",
             # กำหนด resolution หน้าจอ Android
             f"androidboot.redroid_width={device.width}",
             f"androidboot.redroid_height={device.height}",
@@ -706,17 +716,19 @@ def create_device(device: DeviceCreate, background_tasks: BackgroundTasks, curre
             detach=True,
             tty=True,
             stdin_open=True,
-            shm_size='512m',
-            mem_limit='3g',
-            memswap_limit='3g',
+            shm_size=ANDROID_SHM_SIZE,
+            mem_limit=ANDROID_MEMORY_LIMIT,
+            memswap_limit=ANDROID_SWAP_LIMIT,
             cpu_period=100000,
-            cpu_quota=300000,
+            cpu_quota=ANDROID_CPU_CORES * 100000,
             # บันทึก resolution ไว้ใน Docker label เพื่อให้ frontend ดึงได้
             labels={
                 "redroid.managed": "true",
                 "redroid.width": str(device.width),
                 "redroid.height": str(device.height),
                 "redroid.dpi": str(device.dpi),
+                "redroid.memory": ANDROID_MEMORY_LIMIT,
+                "redroid.cpu_cores": str(ANDROID_CPU_CORES),
             },
             volumes={
                 '/dev/binderfs': {'bind': '/dev/binderfs', 'mode': 'rw'}
@@ -1034,8 +1046,9 @@ async def install_apk(
             target_container.put_archive(remote_dir, tar_stream)
 
             # 2. รัน pm install ตรงใน Redroid container (Android Package Manager)
+            target_container.exec_run(f"chmod 0644 {remote_path}")
             exit_code, output = target_container.exec_run(
-                f"pm install -r {remote_path}",
+                f"pm install -r -d -g --user 0 {remote_path}",
                 socket=False, demux=False
             )
 
