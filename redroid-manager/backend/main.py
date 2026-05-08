@@ -1120,15 +1120,34 @@ async def proxy_scrcpy_file(
 
 @api_router.get("/stream")
 async def proxy_scrcpy_index(current_user: User = Depends(get_current_user)):
-    """Proxy ws-scrcpy index page (ต้อง login ก่อน)"""
+    """Proxy ws-scrcpy index page พร้อม rewrite relative asset paths (ต้อง login ก่อน)"""
     import httpx
+    import re
     try:
         async with httpx.AsyncClient() as http:
             resp = await http.get("http://ws-scrcpy:8000/", follow_redirects=True)
+
+        html = resp.content.decode("utf-8", errors="replace")
+
+        # Rewrite relative asset URLs ให้ชี้ผ่าน /api/stream/
+        # เช่น href="main.css" → href="/api/stream/main.css"
+        # เช่น src="bundle.js" → src="/api/stream/bundle.js"
+        def rewrite_attr(m):
+            attr, val = m.group(1), m.group(2)
+            # ข้ามถ้าเป็น absolute URL หรือ data URI หรือ hash
+            if val.startswith(('http://', 'https://', '//', 'data:', '#')):
+                return m.group(0)
+            # ข้าม path ที่ขึ้นต้นด้วย / แล้ว (absolute path)
+            if val.startswith('/'):
+                return f'{attr}="/api/stream{val}"'
+            return f'{attr}="/api/stream/{val}"'
+
+        html = re.sub(r'((?:href|src)=")([^"]*)"', rewrite_attr, html)
+
         return Response(
-            content=resp.content,
+            content=html.encode("utf-8"),
             status_code=resp.status_code,
-            media_type=resp.headers.get("content-type", "text/html"),
+            media_type="text/html; charset=utf-8",
         )
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"ws-scrcpy unavailable: {e}")
