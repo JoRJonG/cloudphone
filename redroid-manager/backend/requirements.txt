@@ -1,5 +1,5 @@
 fastapi
-uvicorn
+uvicorn[standard]
 docker
 pydantic
 sqlalchemy
@@ -9,3 +9,4 @@ python-multipart
 requests
 tqdm
 Pillow
+websockets

@@ -47,8 +47,14 @@ export default function StreamViewer({
     }
 
     const udid = `${ip.trim()}:5555`;
-    const wsHost = window.location.hostname || 'localhost';
-    const wsUrl = `ws://${wsHost}:8001/?action=proxy-adb&remote=tcp:8886&udid=${udid}`;
+
+    // wsUrl ชี้ไปที่ backend proxy (/api/stream/) ที่ port 8000
+    // backend จะ forward พร้อม query string ไปยัง ws-scrcpy ต่อ
+    const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const wsPort = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
+    const wsUrl = `${wsProto}://${host}:${wsPort}/api/stream/?action=proxy-adb&remote=tcp:8886&udid=${encodeURIComponent(udid)}`;
+
+    // iframe ชี้ไปที่ ws-scrcpy UI (port 8001) แต่ใช้ ws URL ผ่าน backend
     return `http://${host}:8001/#!action=stream&udid=${encodeURIComponent(udid)}&player=mse&hide-header=1&hide-navbar=1&hide-footer=1&hide-menu=0&keyboard=true&mouse=true&ws=${encodeURIComponent(wsUrl)}`;
   };
 

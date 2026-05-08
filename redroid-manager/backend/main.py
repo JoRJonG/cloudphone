@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, status, Depends, Response, APIRouter, UploadFile, File, BackgroundTasks
+from fastapi import FastAPI, HTTPException, status, Depends, Response, APIRouter, UploadFile, File, BackgroundTasks, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -1034,6 +1034,62 @@ async def install_apk(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+
+# ============================================================
+# WebSocket Proxy: /api/stream/ → ws://ws-scrcpy:8000/
+# Forward query string ทั้งหมดไปด้วย (action, udid, remote)
+# เพื่อให้ ws-scrcpy รู้ว่าต้องการ stream ไปที่ device ใด
+# ============================================================
+import websockets
+
+@app.websocket("/api/stream/")
+async def ws_scrcpy_proxy(websocket: WebSocket):
+    """Proxy WebSocket ไปยัง ws-scrcpy พร้อม forward query string"""
+    # รับ query string จาก client (เช่น ?action=proxy-adb&udid=...&remote=tcp:8886)
+    query_string = websocket.scope.get("query_string", b"").decode("utf-8")
+    upstream_url = "ws://ws-scrcpy:8000/"
+    if query_string:
+        upstream_url = f"ws://ws-scrcpy:8000/?{query_string}"
+
+    await websocket.accept()
+    client_info = websocket.client
+    print(f"[WS-PROXY] Client: {client_info} → Upstream: {upstream_url}")
+
+    try:
+        async with websockets.connect(upstream_url) as upstream:
+            print(f"[WS-PROXY] Connected to upstream: {upstream_url}")
+
+            async def client_to_upstream():
+                try:
+                    while True:
+                        data = await websocket.receive_bytes()
+                        await upstream.send(data)
+                except (WebSocketDisconnect, Exception):
+                    pass
+
+            async def upstream_to_client():
+                try:
+                    async for message in upstream:
+                        if isinstance(message, bytes):
+                            await websocket.send_bytes(message)
+                        else:
+                            await websocket.send_text(message)
+                except Exception as e:
+                    print(f"[WS-PROXY] upstream_to_client error: {e}")
+
+            await asyncio.gather(
+                client_to_upstream(),
+                upstream_to_client(),
+                return_exceptions=True
+            )
+    except Exception as e:
+        print(f"[WS-PROXY] Connection error: {e}")
+    finally:
+        print(f"[WS-PROXY] Session closed for {client_info}")
+        try:
+            await websocket.close()
+        except Exception:
+            pass
 
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
