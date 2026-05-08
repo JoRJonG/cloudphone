@@ -706,11 +706,11 @@ def create_device(device: DeviceCreate, background_tasks: BackgroundTasks, curre
             detach=True,
             tty=True,
             stdin_open=True,
-            shm_size='256m',
-            mem_limit='2g',
-            memswap_limit='2g',
+            shm_size='512m',
+            mem_limit='3g',
+            memswap_limit='3g',
             cpu_period=100000,
-            cpu_quota=200000,
+            cpu_quota=300000,
             # บันทึก resolution ไว้ใน Docker label เพื่อให้ frontend ดึงได้
             labels={
                 "redroid.managed": "true",
