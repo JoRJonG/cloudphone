@@ -85,14 +85,30 @@ export default function StreamViewer({
                  Array.from(parent.children).forEach(sibling => {
                      const containsMedia = medias.some(m => sibling.contains(m));
                      if (!containsMedia && sibling.tagName !== 'STYLE' && sibling.tagName !== 'SCRIPT') {
-                         // หาก Sibling นั้นมีปุ่มหรือเป็นแถบเครื่องมือ ให้ซ่อน
-                         if (sibling.querySelector('button, svg') || sibling.tagName === 'BUTTON') {
+                         
+                         const rect = sibling.getBoundingClientRect();
+                         const isVerticalToolbar = rect.width > 0 && rect.width <= 120 && rect.height > 100;
+                         const isHorizontalToolbar = rect.height > 0 && rect.height <= 120 && rect.width > 100;
+                         
+                         const className = sibling.className || '';
+                         const isControlClass = typeof className === 'string' && (className.includes('control-') || className.includes('toolbar') || className.includes('panel'));
+
+                         // ซ่อนเฉพาะ Sibling ที่เป็นแถบเครื่องมือจริงๆ (กันเผลอซ่อนปุ่ม Play Overlay)
+                         if (isVerticalToolbar || isHorizontalToolbar || isControlClass) {
                              sibling.style.setProperty('display', 'none', 'important');
                          }
                      }
                  });
                  current = parent;
               }
+          });
+          
+          // ถ้ามี Overlay Play button ให้กดออโต้เพื่อเล่นวิดีโอ
+          document.querySelectorAll('button').forEach(btn => {
+             const text = btn.innerText || '';
+             if (text.toLowerCase().includes('play') && btn.offsetParent !== null) {
+                 btn.click();
+             }
           });
         }, 500);
       `;
