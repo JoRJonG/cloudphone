@@ -75,6 +75,9 @@ class DeviceCreate(BaseModel):
     port: int
     android_version: Optional[str] = "11.0.0"
     features: Optional[List[str]] = [] # gapps, magisk, ndk, widevine
+    width: Optional[int] = 720   # ความกว้างหน้าจอ Android (pixels)
+    height: Optional[int] = 1280 # ความสูงหน้าจอ Android (pixels)
+    dpi: Optional[int] = 320     # DPI หน้าจอ
 
 class UserCreate(BaseModel):
     username: str
@@ -451,6 +454,12 @@ def build_device_payload(container, ws_scrcpy_running, adb_devices):
     if is_running:
         available_actions.append("install_apk")
 
+    # อ่าน resolution จาก Docker label (ถ้าตั้งไว้ตอนสร้าง container)
+    labels = container.labels or {}
+    screen_width  = int(labels.get("redroid.width",  720))
+    screen_height = int(labels.get("redroid.height", 1280))
+    screen_dpi    = int(labels.get("redroid.dpi",    320))
+
     return {
         "id": container.id[:12],
         "name": container.name,
@@ -464,6 +473,10 @@ def build_device_payload(container, ws_scrcpy_running, adb_devices):
         "adb_state": adb_state,
         "started_at": container.attrs.get("State", {}).get("StartedAt"),
         "available_actions": available_actions,
+        # Resolution หน้าจอ (จาก Docker label)
+        "screen_width":  screen_width,
+        "screen_height": screen_height,
+        "screen_dpi":    screen_dpi,
         "checks": {
             "container_running": is_running,
             "has_ip": has_ip,
@@ -657,7 +670,16 @@ def create_device(device: DeviceCreate, background_tasks: BackgroundTasks, curre
 
         # Boot args — ใช้ redroid_gpu_mode=auto ให้ redroid เลือก mode เองตาม host capability
         # (host = ใช้ host GPU จริง, guest = SwiftShader software, auto = ลอง host ก่อน fallback guest)
-        boot_args = ["androidboot.redroid_gpu_mode=auto", "qemu=1", "androidboot.use_memfd=1"]
+        boot_args = [
+            "androidboot.redroid_gpu_mode=auto",
+            "qemu=1",
+            "androidboot.use_memfd=1",
+            # กำหนด resolution หน้าจอ Android
+            f"androidboot.redroid_width={device.width}",
+            f"androidboot.redroid_height={device.height}",
+            f"androidboot.redroid_fps=60",
+            f"ro.sf.lcd_density={device.dpi}",
+        ]
         
         # เพิ่ม properties สำหรับ ARM translation ถ้ามีการเลือก NDK
         if "ndk" in device.features:
@@ -684,14 +706,18 @@ def create_device(device: DeviceCreate, background_tasks: BackgroundTasks, curre
             detach=True,
             tty=True,
             stdin_open=True,
-            # shm_size: shared memory สำหรับ graphics buffer (Android ต้องการมากกว่า default 64m)
             shm_size='256m',
-            # mem_limit: จำกัด RAM ต่อ container ไม่ให้กิน host หมด
             mem_limit='2g',
-            memswap_limit='2g',  # ไม่ใช้ swap (= mem_limit เพื่อ disable swap)
-            # cpu: ให้ 2 cores ต่อ container (cpu_period=100000 = 100ms, quota=200000 = 2 cores)
+            memswap_limit='2g',
             cpu_period=100000,
             cpu_quota=200000,
+            # บันทึก resolution ไว้ใน Docker label เพื่อให้ frontend ดึงได้
+            labels={
+                "redroid.managed": "true",
+                "redroid.width": str(device.width),
+                "redroid.height": str(device.height),
+                "redroid.dpi": str(device.dpi),
+            },
             volumes={
                 '/dev/binderfs': {'bind': '/dev/binderfs', 'mode': 'rw'}
             }

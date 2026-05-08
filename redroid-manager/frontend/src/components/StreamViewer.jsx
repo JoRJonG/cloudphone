@@ -251,7 +251,25 @@ export default function StreamViewer({
             </div>
           ) : iframeUrl ? (
             <div className="stream-center">
-              <div className={`scrcpy-shell scrcpy-shell--${orientation}`}>
+              <div
+                className={`scrcpy-shell scrcpy-shell--${orientation}`}
+                style={(() => {
+                  // ใช้ screen_width/height จาก Docker label ที่ backend return มา
+                  const w = selectedDevice?.screen_width  || 720;
+                  const h = selectedDevice?.screen_height || 1280;
+                  // คำนวณ aspect-ratio ตาม orientation ที่ user เลือก
+                  let ar;
+                  if (orientation === 'landscape') {
+                    ar = w >= h ? `${w} / ${h}` : `${h} / ${w}`;
+                  } else if (orientation === 'portrait') {
+                    ar = h >= w ? `${w} / ${h}` : `${h} / ${w}`;
+                  } else {
+                    // auto: ใช้ตาม resolution จริงของ device
+                    ar = `${w} / ${h}`;
+                  }
+                  return { aspectRatio: ar };
+                })()}
+              >
                 <iframe
                   key={`${selectedDevice.id}-${orientation}`}
                   src={iframeUrl}
@@ -267,6 +285,7 @@ export default function StreamViewer({
 
 
             </div>
+
           ) : (
             <div className="stream-placeholder">
               <div className="placeholder-icon">

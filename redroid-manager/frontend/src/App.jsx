@@ -214,7 +214,7 @@ function App() {
     }
   };
 
-  const handleAddDevice = async (name, port, features = []) => {
+  const handleAddDevice = async (name, port, features = [], width = 720, height = 1280, dpi = 320) => {
     const trimmedName = name.trim();
     const parsedPort = Number.parseInt(port, 10);
 
@@ -235,7 +235,10 @@ function App() {
         body: JSON.stringify({
           name: trimmedName,
           port: parsedPort,
-          features
+          features,
+          width,
+          height,
+          dpi,
         }),
         credentials: 'include'
       });
