@@ -1134,8 +1134,8 @@ async def proxy_scrcpy_index(current_user: User = Depends(get_current_user)):
         # เช่น src="bundle.js" → src="/api/stream/bundle.js"
         def rewrite_attr(m):
             attr, val = m.group(1), m.group(2)
-            # ข้ามถ้าเป็น absolute URL หรือ data URI หรือ hash
-            if val.startswith(('http://', 'https://', '//', 'data:', '#', '')):
+            # ข้ามถ้าเป็น empty, absolute URL, data URI หรือ hash
+            if not val or val.startswith(('http://', 'https://', '//', 'data:', '#')):
                 return m.group(0)
             # attr คือ 'href="' หรือ 'src="' อยู่แล้ว — ไม่ต้องใส่ =" อีก
             if val.startswith('/'):
