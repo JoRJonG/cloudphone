@@ -531,6 +531,81 @@ def ensure_device_access(db: Session, current_user: User, container):
         raise HTTPException(status_code=403, detail="ACCESS_DENIED")
 
 
+_last_cpu_sample = None
+
+
+def _read_cpu_sample():
+    with open("/proc/stat", "r", encoding="utf-8") as stat_file:
+        fields = stat_file.readline().strip().split()
+
+    if not fields or fields[0] != "cpu":
+        return None
+
+    values = [int(value) for value in fields[1:]]
+    idle = values[3] + (values[4] if len(values) > 4 else 0)
+    total = sum(values)
+    return {"idle": idle, "total": total}
+
+
+def _read_memory_info():
+    values = {}
+    with open("/proc/meminfo", "r", encoding="utf-8") as mem_file:
+        for line in mem_file:
+            key, raw_value = line.split(":", 1)
+            values[key] = int(raw_value.strip().split()[0]) * 1024
+
+    total = values.get("MemTotal", 0)
+    available = values.get("MemAvailable", 0)
+    used = max(total - available, 0)
+    percent = round((used / total) * 100, 1) if total else 0
+    return {
+        "total_bytes": total,
+        "available_bytes": available,
+        "used_bytes": used,
+        "percent": percent,
+    }
+
+
+def get_system_metrics_payload():
+    global _last_cpu_sample
+
+    cpu_sample = _read_cpu_sample()
+    cpu_percent = None
+    if cpu_sample and _last_cpu_sample:
+        total_delta = cpu_sample["total"] - _last_cpu_sample["total"]
+        idle_delta = cpu_sample["idle"] - _last_cpu_sample["idle"]
+        if total_delta > 0:
+            cpu_percent = round(max(0, min(100, (1 - idle_delta / total_delta) * 100)), 1)
+    _last_cpu_sample = cpu_sample
+
+    docker_info = client.info() if client else {}
+    cpu_count = docker_info.get("NCPU") or os.cpu_count() or 0
+    total_memory = docker_info.get("MemTotal")
+    memory = _read_memory_info()
+    if total_memory and total_memory > memory["total_bytes"]:
+        memory["total_bytes"] = total_memory
+        memory["used_bytes"] = max(total_memory - memory["available_bytes"], 0)
+        memory["percent"] = round((memory["used_bytes"] / total_memory) * 100, 1)
+
+    return {
+        "cpu": {
+            "percent": cpu_percent,
+            "cores": cpu_count,
+        },
+        "memory": memory,
+        "sampled_at": time.time(),
+    }
+
+
+@api_router.get("/system/metrics")
+def get_system_metrics(current_user: User = Depends(get_current_user)):
+    """Return lightweight VPS CPU and memory usage metrics."""
+    try:
+        return {"status": "success", "data": get_system_metrics_payload()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @api_router.get("/devices")
 def get_devices(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """ดึงรายการ Redroid containers"""

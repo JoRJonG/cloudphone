@@ -15,6 +15,7 @@ function App() {
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [selectedDiagnostics, setSelectedDiagnostics] = useState(null);
   const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
+  const [systemMetrics, setSystemMetrics] = useState(null);
 
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -56,6 +57,7 @@ function App() {
     setDevices([]);
     setSelectedDevice(null);
     setSelectedDiagnostics(null);
+    setSystemMetrics(null);
     setShowUserMgmt(false);
   }, []);
 
@@ -128,6 +130,30 @@ function App() {
     return null;
   }, [handleLogout]);
 
+  const fetchSystemMetrics = useCallback(async () => {
+    if (!currentUser) {
+      return null;
+    }
+
+    try {
+      const res = await fetch('/api/system/metrics', { credentials: 'include' });
+      if (res.status === 401) {
+        handleLogout();
+        return null;
+      }
+
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
+        setSystemMetrics(data.data);
+        return data.data;
+      }
+    } catch (err) {
+      console.warn('Failed to fetch system metrics:', err.message);
+    }
+
+    return null;
+  }, [currentUser, handleLogout]);
+
   useEffect(() => {
     const checkSession = async () => {
       try {
@@ -167,6 +193,24 @@ function App() {
       clearInterval(interval);
     };
   }, [currentUser, fetchDevices]);
+
+  useEffect(() => {
+    if (!currentUser) {
+      return undefined;
+    }
+
+    const initialFetch = setTimeout(() => {
+      fetchSystemMetrics();
+    }, 0);
+    const interval = setInterval(() => {
+      fetchSystemMetrics();
+    }, 3000);
+
+    return () => {
+      clearTimeout(initialFetch);
+      clearInterval(interval);
+    };
+  }, [currentUser, fetchSystemMetrics]);
 
   useEffect(() => {
     if (!selectedDevice?.id) {
@@ -408,6 +452,7 @@ function App() {
         onInstallApk={(device) => setApkTargetDevice(device)}
         onDeviceAction={handleDeviceAction}
         activeDeviceAction={activeDeviceAction}
+        systemMetrics={systemMetrics}
       />
       <StreamViewer
         devices={devices}

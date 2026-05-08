@@ -1,7 +1,12 @@
 import { useState } from 'react';
-import { LogOut, Plus, Activity, Users, Search, Filter } from 'lucide-react';
+import { LogOut, Plus, Activity, Users, Search, Filter, Cpu, MemoryStick } from 'lucide-react';
 import DeviceList from './DeviceList';
 import DeviceForm from './DeviceForm';
+
+const formatBytes = (bytes = 0) => {
+  if (!bytes) return '0 GB';
+  return `${(bytes / (1024 ** 3)).toFixed(1)} GB`;
+};
 
 export default function Sidebar({
   devices,
@@ -19,7 +24,8 @@ export default function Sidebar({
   onOpenUserMgmt,
   onInstallApk,
   onDeviceAction,
-  activeDeviceAction
+  activeDeviceAction,
+  systemMetrics
 }) {
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState('all');
@@ -52,6 +58,42 @@ export default function Sidebar({
           <button className="btn-icon danger" onClick={onLogout} title="Logout">
             <LogOut size={18} />
           </button>
+        </div>
+      </div>
+
+      <div className="system-monitor">
+        <div className="monitor-row">
+          <div className="monitor-label">
+            <Cpu size={14} />
+            <span>CPU</span>
+          </div>
+          <span className="monitor-value">
+            {systemMetrics?.cpu?.percent == null ? '--' : `${systemMetrics.cpu.percent.toFixed(1)}%`}
+          </span>
+        </div>
+        <div className="monitor-bar">
+          <div
+            className="monitor-fill cpu"
+            style={{ width: `${systemMetrics?.cpu?.percent || 0}%` }}
+          />
+        </div>
+
+        <div className="monitor-row">
+          <div className="monitor-label">
+            <MemoryStick size={14} />
+            <span>RAM</span>
+          </div>
+          <span className="monitor-value">
+            {systemMetrics?.memory
+              ? `${systemMetrics.memory.percent.toFixed(1)}% ${formatBytes(systemMetrics.memory.used_bytes)}/${formatBytes(systemMetrics.memory.total_bytes)}`
+              : '--'}
+          </span>
+        </div>
+        <div className="monitor-bar">
+          <div
+            className="monitor-fill memory"
+            style={{ width: `${systemMetrics?.memory?.percent || 0}%` }}
+          />
         </div>
       </div>
 
