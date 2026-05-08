@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback } from 'react';
 import { X, Upload, Package, CheckCircle, XCircle, Loader, FileArchive } from 'lucide-react';
 
+const SUPPORTED_PACKAGES = ['.apk', '.xapk', '.apks', '.zip'];
+
 /**
  * ApkInstallModal
  * Modal สำหรับอัปโหลดและติดตั้ง APK บน Redroid device ที่เลือก
@@ -15,8 +17,9 @@ export default function ApkInstallModal({ device, onClose, showNotification }) {
 
   const handleFile = useCallback((file) => {
     if (!file) return;
-    if (!file.name.toLowerCase().endsWith('.apk')) {
-      showNotification('ERR: ไฟล์ต้องเป็น .apk เท่านั้น');
+    const lowerName = file.name.toLowerCase();
+    if (!SUPPORTED_PACKAGES.some(ext => lowerName.endsWith(ext))) {
+      showNotification('ERR: file must be .apk, .xapk, .apks, or .zip');
       return;
     }
     setSelectedFile(file);
@@ -129,7 +132,7 @@ export default function ApkInstallModal({ device, onClose, showNotification }) {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".apk"
+              accept=".apk,.xapk,.apks,.zip"
               style={{ display: 'none' }}
               onChange={(e) => handleFile(e.target.files[0])}
             />
@@ -138,7 +141,7 @@ export default function ApkInstallModal({ device, onClose, showNotification }) {
               <>
                 <Upload size={36} className="apk-drop-icon" />
                 <p className="apk-drop-title">DROP APK HERE</p>
-                <p className="apk-drop-sub">or click to browse — .apk files only</p>
+                <p className="apk-drop-sub">or click to browse - APK/XAPK/APKS/ZIP</p>
               </>
             ) : (
               <div className="apk-file-info">

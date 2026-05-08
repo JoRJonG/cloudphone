@@ -8,8 +8,10 @@ from datetime import timedelta
 import docker
 import os
 import io
+import json
 import tarfile
 import tempfile
+import zipfile
 import asyncio
 import subprocess
 import sys
@@ -35,7 +37,9 @@ REDROID_IMAGE = os.getenv("REDROID_IMAGE", "redroid/redroid:11.0.0-latest")
 ANDROID_MEMORY_LIMIT = os.getenv("ANDROID_MEMORY_LIMIT", "4g")
 ANDROID_SWAP_LIMIT = os.getenv("ANDROID_SWAP_LIMIT", ANDROID_MEMORY_LIMIT)
 ANDROID_SHM_SIZE = os.getenv("ANDROID_SHM_SIZE", "1g")
-ANDROID_CPU_CORES = int(os.getenv("ANDROID_CPU_CORES", "4"))
+ANDROID_CPU_CORES = int(os.getenv("ANDROID_CPU_CORES", "3"))
+ANDROID_FPS = int(os.getenv("ANDROID_FPS", "45"))
+ANDROID_DISABLE_ANIMATIONS = os.getenv("ANDROID_DISABLE_ANIMATIONS", "true").lower() == "true"
 
 # สร้าง APIRouter สำหรับทุกเส้นทางที่ขึ้นต้นด้วย /api
 api_router = APIRouter(prefix="/api")
@@ -420,6 +424,20 @@ def get_adb_devices(ws_scrcpy_container):
     return devices, raw_output
 
 
+def tune_android_runtime(ws_scrcpy_container, adb_serial: str):
+    if not ANDROID_DISABLE_ANIMATIONS:
+        return
+
+    commands = [
+        "settings put global window_animation_scale 0",
+        "settings put global transition_animation_scale 0",
+        "settings put global animator_duration_scale 0",
+        "settings put system pointer_speed 7",
+    ]
+    for command in commands:
+        ws_scrcpy_container.exec_run(f"adb -s {adb_serial} shell {command}")
+
+
 def build_device_payload(container, ws_scrcpy_running, adb_devices):
     image_name = container.attrs.get("Config", {}).get("Image", "")
     container_ip = get_container_ip(container)
@@ -463,6 +481,7 @@ def build_device_payload(container, ws_scrcpy_running, adb_devices):
     screen_width  = int(labels.get("redroid.width",  720))
     screen_height = int(labels.get("redroid.height", 1280))
     screen_dpi    = int(labels.get("redroid.dpi",    320))
+    screen_fps    = int(labels.get("redroid.fps",    ANDROID_FPS))
 
     return {
         "id": container.id[:12],
@@ -481,6 +500,9 @@ def build_device_payload(container, ws_scrcpy_running, adb_devices):
         "screen_width":  screen_width,
         "screen_height": screen_height,
         "screen_dpi":    screen_dpi,
+        "screen_fps":    screen_fps,
+        "memory_limit":  labels.get("redroid.memory"),
+        "cpu_cores":     labels.get("redroid.cpu_cores"),
         "checks": {
             "container_running": is_running,
             "has_ip": has_ip,
@@ -564,6 +586,7 @@ async def auto_connect_new_device(device_id: str):
                 exit_code, output = ws_scrcpy.exec_run(f"adb connect {target_ip}:5555")
                 message = (output or b"").decode("utf-8", errors="replace").lower()
                 if exit_code == 0 and ("connected to" in message or "already connected to" in message):
+                    tune_android_runtime(ws_scrcpy, f"{target_ip}:5555")
                     print(f"AUTO_CONNECT: Success for {target_ip}")
                     break
                 await asyncio.sleep(5)
@@ -687,7 +710,7 @@ def create_device(device: DeviceCreate, background_tasks: BackgroundTasks, curre
             # กำหนด resolution หน้าจอ Android
             f"androidboot.redroid_width={device.width}",
             f"androidboot.redroid_height={device.height}",
-            f"androidboot.redroid_fps=60",
+            f"androidboot.redroid_fps={ANDROID_FPS}",
             f"androidboot.redroid_dpi={device.dpi}",
         ]
         
@@ -729,6 +752,7 @@ def create_device(device: DeviceCreate, background_tasks: BackgroundTasks, curre
                 "redroid.dpi": str(device.dpi),
                 "redroid.memory": ANDROID_MEMORY_LIMIT,
                 "redroid.cpu_cores": str(ANDROID_CPU_CORES),
+                "redroid.fps": str(ANDROID_FPS),
             },
             volumes={
                 '/dev/binderfs': {'bind': '/dev/binderfs', 'mode': 'rw'}
@@ -1011,8 +1035,11 @@ async def install_apk(
     if not client:
         raise HTTPException(status_code=500, detail="Docker client not connected")
 
-    if not apk_file.filename.lower().endswith('.apk'):
-        raise HTTPException(status_code=400, detail="File must be an .apk file")
+    upload_name = apk_file.filename or ""
+    upload_ext = os.path.splitext(upload_name.lower())[1]
+    supported_exts = {".apk", ".xapk", ".apks", ".zip"}
+    if upload_ext not in supported_exts:
+        raise HTTPException(status_code=400, detail="File must be .apk, .xapk, .apks, or .zip")
 
     try:
         target_container = get_device_by_id(device_id)
@@ -1025,36 +1052,135 @@ async def install_apk(
         ensure_device_access(db, current_user, target_container)
 
         # อ่านไฟล์ APK
-        apk_data = await apk_file.read()
-        if len(apk_data) == 0:
-            raise HTTPException(status_code=400, detail="APK file is empty")
+        upload_data = await apk_file.read()
+        if len(upload_data) == 0:
+            raise HTTPException(status_code=400, detail="Uploaded file is empty")
 
-        safe_filename = "install_target.apk"
-        remote_dir  = "/data/local/tmp"
-        remote_path = f"{remote_dir}/{safe_filename}"
+        remote_dir = f"/data/local/tmp/redroid_install_{int(time.time())}"
 
         loop = asyncio.get_event_loop()
 
         def _do_install():
-            # 1. Copy APK เข้า Redroid container โดยตรง
-            tar_stream = io.BytesIO()
-            with tarfile.open(fileobj=tar_stream, mode='w') as tar:
-                info = tarfile.TarInfo(name=safe_filename)
-                info.size = len(apk_data)
-                tar.addfile(info, io.BytesIO(apk_data))
-            tar_stream.seek(0)
-            target_container.put_archive(remote_dir, tar_stream)
+            def put_file(dest_dir, filename, data):
+                tar_stream = io.BytesIO()
+                with tarfile.open(fileobj=tar_stream, mode="w") as tar:
+                    info = tarfile.TarInfo(name=filename)
+                    info.size = len(data)
+                    info.mode = 0o644
+                    tar.addfile(info, io.BytesIO(data))
+                tar_stream.seek(0)
+                target_container.put_archive(dest_dir, tar_stream)
 
-            # 2. รัน pm install ตรงใน Redroid container (Android Package Manager)
-            target_container.exec_run(f"chmod 0644 {remote_path}")
+            def put_android_assets(asset_entries):
+                if not asset_entries:
+                    return 0
+
+                target_container.exec_run("mkdir -p /sdcard/Android/obb /sdcard/Android/data")
+                tar_stream = io.BytesIO()
+                added_dirs = set()
+
+                with tarfile.open(fileobj=tar_stream, mode="w") as tar:
+                    for asset_path, data in asset_entries:
+                        normalized = asset_path.replace("\\", "/").lstrip("/")
+                        parts = [part for part in normalized.split("/") if part and part not in (".", "..")]
+                        if len(parts) < 3:
+                            continue
+
+                        safe_path = "/".join(parts)
+                        parent = ""
+                        for part in parts[:-1]:
+                            parent = f"{parent}/{part}" if parent else part
+                            if parent in added_dirs:
+                                continue
+                            dir_info = tarfile.TarInfo(name=parent)
+                            dir_info.type = tarfile.DIRTYPE
+                            dir_info.mode = 0o755
+                            tar.addfile(dir_info)
+                            added_dirs.add(parent)
+
+                        info = tarfile.TarInfo(name=safe_path)
+                        info.size = len(data)
+                        info.mode = 0o644
+                        tar.addfile(info, io.BytesIO(data))
+
+                tar_stream.seek(0)
+                target_container.put_archive("/sdcard", tar_stream)
+                return len(asset_entries)
+
+            target_container.exec_run(f"rm -rf {remote_dir}")
+            target_container.exec_run(f"mkdir -p {remote_dir}")
+
+            apk_entries = []
+            asset_entries = []
+            root_obb_entries = []
+
+            if upload_ext == ".apk":
+                apk_entries.append(("base.apk", upload_data))
+            else:
+                try:
+                    archive = zipfile.ZipFile(io.BytesIO(upload_data))
+                except zipfile.BadZipFile:
+                    return 1, b"Invalid archive. Upload a valid .xapk, .apks, or .zip file."
+
+                with archive:
+                    package_name = None
+                    manifest_entry = next(
+                        (item for item in archive.infolist() if item.filename.lower().endswith("manifest.json")),
+                        None
+                    )
+                    if manifest_entry:
+                        try:
+                            manifest = json.loads(archive.read(manifest_entry).decode("utf-8", errors="replace"))
+                            package_name = manifest.get("package_name") or manifest.get("packageName") or manifest.get("package")
+                        except Exception:
+                            package_name = None
+
+                    for info in archive.infolist():
+                        if info.is_dir():
+                            continue
+                        entry_name = info.filename.replace("\\", "/").lstrip("/")
+                        entry_lower = entry_name.lower()
+
+                        if entry_lower.endswith(".apk"):
+                            apk_entries.append((os.path.basename(entry_name) or f"split_{len(apk_entries)}.apk", archive.read(info)))
+                        elif entry_lower.startswith(("android/obb/", "android/data/")):
+                            asset_entries.append((entry_name, archive.read(info)))
+                        elif package_name and "/" not in entry_name and entry_lower.endswith(".obb"):
+                            root_obb_entries.append((f"Android/obb/{package_name}/{entry_name}", archive.read(info)))
+
+                    asset_entries.extend(root_obb_entries)
+
+            if not apk_entries:
+                return 1, b"No APK files found in upload."
+
+            remote_apks = []
+            for idx, (name, data) in enumerate(apk_entries):
+                safe_name = "".join(ch if ch.isalnum() or ch in "._-" else "_" for ch in name)
+                remote_name = f"{idx}_{safe_name or 'split.apk'}"
+                put_file(remote_dir, remote_name, data)
+                remote_path = f"{remote_dir}/{remote_name}"
+                target_container.exec_run(f"chmod 0644 {remote_path}")
+                remote_apks.append(remote_path)
+
+            if len(remote_apks) == 1:
+                install_cmd = f"pm install -r -d -g --user 0 {remote_apks[0]}"
+            else:
+                install_cmd = "pm install-multiple -r -d -g --user 0 " + " ".join(remote_apks)
+
             exit_code, output = target_container.exec_run(
-                f"pm install -r -d -g --user 0 {remote_path}",
-                socket=False, demux=False
+                install_cmd,
+                socket=False,
+                demux=False
             )
 
-            # 3. ลบไฟล์ temp
-            target_container.exec_run(f"rm -f {remote_path}")
+            result_text = (output or b"").decode("utf-8", errors="replace").strip()
+            if exit_code == 0 and "Failure" not in result_text:
+                copied_assets = put_android_assets(asset_entries)
+                if copied_assets:
+                    result_text = f"{result_text}\nCopied {copied_assets} Android asset file(s)."
+                    output = result_text.encode("utf-8")
 
+            target_container.exec_run(f"rm -rf {remote_dir}")
             return exit_code, output
 
         # รันบน thread pool เพื่อไม่บล็อก async event loop
