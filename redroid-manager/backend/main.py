@@ -655,9 +655,9 @@ def create_device(device: DeviceCreate, background_tasks: BackgroundTasks, curre
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Image preparation failed: {str(e)}")
 
-        # 2. จัดเตรียม Boot arguments และ ro.* properties
-        # properties พื้นฐาน
-        boot_args = ["androidboot.redroid_gpu_mode=guest", "qemu=1", "androidboot.use_memfd=1"]
+        # Boot args — ใช้ redroid_gpu_mode=auto ให้ redroid เลือก mode เองตาม host capability
+        # (host = ใช้ host GPU จริง, guest = SwiftShader software, auto = ลอง host ก่อน fallback guest)
+        boot_args = ["androidboot.redroid_gpu_mode=auto", "qemu=1", "androidboot.use_memfd=1"]
         
         # เพิ่ม properties สำหรับ ARM translation ถ้ามีการเลือก NDK
         if "ndk" in device.features:
@@ -684,6 +684,14 @@ def create_device(device: DeviceCreate, background_tasks: BackgroundTasks, curre
             detach=True,
             tty=True,
             stdin_open=True,
+            # shm_size: shared memory สำหรับ graphics buffer (Android ต้องการมากกว่า default 64m)
+            shm_size='256m',
+            # mem_limit: จำกัด RAM ต่อ container ไม่ให้กิน host หมด
+            mem_limit='2g',
+            memswap_limit='2g',  # ไม่ใช้ swap (= mem_limit เพื่อ disable swap)
+            # cpu: ให้ 2 cores ต่อ container (cpu_period=100000 = 100ms, quota=200000 = 2 cores)
+            cpu_period=100000,
+            cpu_quota=200000,
             volumes={
                 '/dev/binderfs': {'bind': '/dev/binderfs', 'mode': 'rw'}
             }
