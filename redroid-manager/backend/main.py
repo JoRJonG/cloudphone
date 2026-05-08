@@ -1153,6 +1153,7 @@ async def proxy_scrcpy_file(
         raise HTTPException(status_code=502, detail=f"ws-scrcpy unavailable: {e}")
 
 @api_router.get("/stream")
+@api_router.get("/stream/")
 async def proxy_scrcpy_index(current_user: User = Depends(get_current_user)):
     """Proxy ws-scrcpy index page พร้อม rewrite relative asset paths (ต้อง login ก่อน)"""
     import httpx
