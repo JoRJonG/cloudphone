@@ -17,8 +17,8 @@ services:
 
   ws-scrcpy:
     image: scavin/ws-scrcpy
-    ports:
-      - "8001:8000"
+    # ไม่ expose port ออก public — เข้าได้เฉพาะ backend ผ่าน internal Docker network
+    # (ไม่มี ports: - "8001:8000" อีกต่อไป)
     networks:
       - redroid_net
     restart: unless-stopped

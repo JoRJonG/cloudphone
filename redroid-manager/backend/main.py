@@ -1094,6 +1094,45 @@ async def ws_scrcpy_proxy(websocket: WebSocket):
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
+# ============================================================
+# HTTP Reverse Proxy: /api/stream/{path} → http://ws-scrcpy:8000/{path}
+# Serve ws-scrcpy UI ผ่าน backend เพื่อไม่ต้องเปิด port 8001 สู่ public
+# ทุก request ต้องผ่าน authentication ของ backend ก่อน
+# ============================================================
+@api_router.get("/stream/{file_path:path}")
+async def proxy_scrcpy_file(
+    file_path: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Proxy ws-scrcpy static files (ต้อง login ก่อน)"""
+    import httpx
+    upstream = f"http://ws-scrcpy:8000/{file_path}"
+    try:
+        async with httpx.AsyncClient() as http:
+            resp = await http.get(upstream, follow_redirects=True)
+        return Response(
+            content=resp.content,
+            status_code=resp.status_code,
+            media_type=resp.headers.get("content-type", "application/octet-stream"),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"ws-scrcpy unavailable: {e}")
+
+@api_router.get("/stream")
+async def proxy_scrcpy_index(current_user: User = Depends(get_current_user)):
+    """Proxy ws-scrcpy index page (ต้อง login ก่อน)"""
+    import httpx
+    try:
+        async with httpx.AsyncClient() as http:
+            resp = await http.get("http://ws-scrcpy:8000/", follow_redirects=True)
+        return Response(
+            content=resp.content,
+            status_code=resp.status_code,
+            media_type=resp.headers.get("content-type", "text/html"),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"ws-scrcpy unavailable: {e}")
+
 # Register API routes ก่อน static files เสมอ เพื่อป้องกัน catch-all ดักจับ API requests
 app.include_router(api_router)
 
