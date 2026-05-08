@@ -678,7 +678,7 @@ def create_device(device: DeviceCreate, background_tasks: BackgroundTasks, curre
             f"androidboot.redroid_width={device.width}",
             f"androidboot.redroid_height={device.height}",
             f"androidboot.redroid_fps=60",
-            f"ro.sf.lcd_density={device.dpi}",
+            f"androidboot.redroid_dpi={device.dpi}",
         ]
         
         # เพิ่ม properties สำหรับ ARM translation ถ้ามีการเลือก NDK

@@ -36,18 +36,17 @@ export default function StreamViewer({
 
   const iframeRef = useRef(null);
 
-  // Inject CSS เข้า iframe หลัง load
-  // Strategy: บังคับ video/canvas ให้ position:fixed ครอบพื้นที่ทั้งหมด + z-index สูงสุด
-  // ทุก element อื่น (sidebar, toolbar, header) จะถูกซ่อนอยู่ข้างใต้โดยอัตโนมัติ
-  // ไม่จำเป็นต้องรู้ class name ของ ws-scrcpy เลย
   const handleIframeLoad = useCallback(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
     try {
       const doc = iframe.contentDocument || iframe.contentWindow?.document;
       if (!doc) return;
-      // ลบ style เก่าถ้ามี (กรณี reload)
+      
+      // ลบ script/style เก่าถ้ามี (กรณี reload)
       doc.getElementById('__redroid_css')?.remove();
+      doc.getElementById('__redroid_js')?.remove();
+      
       const style = doc.createElement('style');
       style.id = '__redroid_css';
       style.textContent = `
@@ -60,19 +59,45 @@ export default function StreamViewer({
           width: 100vw !important;
           height: 100vh !important;
         }
-        /* บังคับ video/canvas ลอยขึ้นครอบทุกอย่างใน iframe
-           sidebar, toolbar, header จะถูกซ่อนอยู่ข้างใต้ */
+        /* ให้วิดีโอขยายเต็ม container แทนที่จะลอยขึ้นมาทับทั้งหมด */
         video, canvas {
-          position: fixed !important;
-          inset: 0 !important;
-          width: 100vw !important;
-          height: 100vh !important;
+          width: 100% !important;
+          height: 100% !important;
+          max-width: 100vw !important;
+          max-height: 100vh !important;
           object-fit: contain !important;
-          z-index: 2147483647 !important;
           background: #000 !important;
         }
       `;
       doc.head.appendChild(style);
+
+      const script = doc.createElement('script');
+      script.id = '__redroid_js';
+      script.textContent = `
+        setInterval(() => {
+          const medias = Array.from(document.querySelectorAll('video, canvas'));
+          if (medias.length === 0) return;
+          
+          medias.forEach(media => {
+              let current = media;
+              while (current && current !== document.body && current.parentElement) {
+                 const parent = current.parentElement;
+                 Array.from(parent.children).forEach(sibling => {
+                     const containsMedia = medias.some(m => sibling.contains(m));
+                     if (!containsMedia && sibling.tagName !== 'STYLE' && sibling.tagName !== 'SCRIPT') {
+                         // หาก Sibling นั้นมีปุ่มหรือเป็นแถบเครื่องมือ ให้ซ่อน
+                         if (sibling.querySelector('button, svg') || sibling.tagName === 'BUTTON') {
+                             sibling.style.setProperty('display', 'none', 'important');
+                         }
+                     }
+                 });
+                 current = parent;
+              }
+          });
+        }, 500);
+      `;
+      doc.body.appendChild(script);
+
     } catch (e) {
       console.warn('[IFRAME-CSS] Cannot inject (cross-origin?):', e);
     }
