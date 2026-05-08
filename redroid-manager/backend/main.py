@@ -1135,12 +1135,12 @@ async def proxy_scrcpy_index(current_user: User = Depends(get_current_user)):
         def rewrite_attr(m):
             attr, val = m.group(1), m.group(2)
             # ข้ามถ้าเป็น absolute URL หรือ data URI หรือ hash
-            if val.startswith(('http://', 'https://', '//', 'data:', '#')):
+            if val.startswith(('http://', 'https://', '//', 'data:', '#', '')):
                 return m.group(0)
-            # ข้าม path ที่ขึ้นต้นด้วย / แล้ว (absolute path)
+            # attr คือ 'href="' หรือ 'src="' อยู่แล้ว — ไม่ต้องใส่ =" อีก
             if val.startswith('/'):
-                return f'{attr}="/api/stream{val}"'
-            return f'{attr}="/api/stream/{val}"'
+                return f'{attr}/api/stream{val}"'
+            return f'{attr}/api/stream/{val}"'
 
         html = re.sub(r'((?:href|src)=")([^"]*)"', rewrite_attr, html)
 
