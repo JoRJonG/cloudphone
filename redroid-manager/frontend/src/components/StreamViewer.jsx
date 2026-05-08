@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Monitor,
   Wifi,
@@ -34,6 +34,46 @@ export default function StreamViewer({
   const isAdmin = currentUser?.role === 'admin';
   const isBusy = selectedDevice && activeDeviceAction?.endsWith(selectedDevice.id);
 
+  const iframeRef = useRef(null);
+
+  // Inject CSS เข้า iframe หลัง load — ซ่อน ws-scrcpy toolbar ออก
+  const handleIframeLoad = useCallback(() => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+    try {
+      const doc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!doc) return;
+      const style = doc.createElement('style');
+      style.textContent = `
+        /* ซ่อน ws-scrcpy header / toolbar / sidebar ทั้งหมด */
+        header, .header, nav, .navbar, .toolbar, .top-bar,
+        [class*="header"], [class*="toolbar"], [class*="navbar"],
+        [class*="top-bar"], [class*="controls"], aside,
+        [class*="device-control"], [class*="sidebar"],
+        footer, .footer, [class*="footer"],
+        .device-controls, .device-navbar, .right-panel {
+          display: none !important;
+          height: 0 !important;
+          overflow: hidden !important;
+        }
+        /* video/canvas เต็มพื้นที่ */
+        html, body {
+          margin: 0 !important; padding: 0 !important;
+          overflow: hidden !important; background: #000 !important;
+          width: 100% !important; height: 100% !important;
+        }
+        video, canvas {
+          display: block !important;
+          width: 100% !important; height: 100% !important;
+          object-fit: contain !important;
+        }
+      `;
+      doc.head.appendChild(style);
+    } catch (e) {
+      console.warn('[IFRAME-CSS] Cannot inject:', e);
+    }
+  }, []);
+
   const getIframeUrl = (device) => {
     const ip = device?.ip;
     const canStream = device?.checks?.stream_ready;
@@ -50,7 +90,7 @@ export default function StreamViewer({
 
     // iframe ชี้ผ่าน backend HTTP proxy /api/stream (ต้อง login แล้ว)
     const httpBase = window.location.origin;
-    return `${httpBase}/api/stream#!action=stream&udid=${encodeURIComponent(udid)}&player=mse&hide-header=1&hide-navbar=1&hide-footer=1&hide-menu=1&keyboard=true&mouse=true&gamepad=true&ws=${encodeURIComponent(wsUrl)}`;
+    return `${httpBase}/api/stream#!action=stream&udid=${encodeURIComponent(udid)}&player=mse&hide-header=1&hide-navbar=1&hide-footer=1&hide-menu=1&fitToScreen=true&keyboard=true&mouse=true&gamepad=true&ws=${encodeURIComponent(wsUrl)}`;
   };
 
   const iframeUrl = getIframeUrl(selectedDevice);
@@ -217,6 +257,8 @@ export default function StreamViewer({
                   src={iframeUrl}
                   title="ws-scrcpy stream"
                   allow="fullscreen; clipboard-read; clipboard-write; gamepad"
+                  ref={iframeRef}
+                  onLoad={handleIframeLoad}
                   className="scrcpy-iframe"
                   style={{ background: 'transparent' }}
                   tabIndex={0}
