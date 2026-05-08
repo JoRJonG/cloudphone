@@ -50,7 +50,7 @@ export default function StreamViewer({
 
     // iframe ชี้ผ่าน backend HTTP proxy /api/stream (ต้อง login แล้ว)
     const httpBase = window.location.origin;
-    return `${httpBase}/api/stream#!action=stream&udid=${encodeURIComponent(udid)}&player=mse&hide-header=1&hide-navbar=1&hide-footer=1&hide-menu=0&keyboard=true&mouse=true&ws=${encodeURIComponent(wsUrl)}`;
+    return `${httpBase}/api/stream#!action=stream&udid=${encodeURIComponent(udid)}&player=mse&hide-header=1&hide-navbar=1&hide-footer=1&hide-menu=1&keyboard=true&mouse=true&gamepad=true&ws=${encodeURIComponent(wsUrl)}`;
   };
 
   const iframeUrl = getIframeUrl(selectedDevice);
@@ -216,30 +216,14 @@ export default function StreamViewer({
                   key={`${selectedDevice.id}-${orientation}`}
                   src={iframeUrl}
                   title="ws-scrcpy stream"
-                  allow="fullscreen"
+                  allow="fullscreen; clipboard-read; clipboard-write; gamepad"
                   className="scrcpy-iframe"
                   style={{ background: 'transparent' }}
+                  tabIndex={0}
                 />
               </div>
 
-              <div className="stream-hints mono text-[10px] text-muted flex gap-6 opacity-60 hover:opacity-100 transition-opacity">
-                <div className="hint-item flex items-center gap-2">
-                  <span className="bg-surface-highlight px-1 border border-panel-border text-primary">CLICK</span>
-                  <span>TO_FOCUS_KEYBOARD</span>
-                </div>
-                <div className="hint-item flex items-center gap-2">
-                  <span className="bg-surface-highlight px-1 border border-panel-border text-secondary">ALT+H</span>
-                  <span>HOME</span>
-                </div>
-                <div className="hint-item flex items-center gap-2">
-                  <span className="bg-surface-highlight px-1 border border-panel-border text-secondary">ALT+B</span>
-                  <span>BACK</span>
-                </div>
-                <div className="hint-item flex items-center gap-2">
-                  <span className="bg-surface-highlight px-1 border border-panel-border text-secondary">ALT+S</span>
-                  <span>RECENTS</span>
-                </div>
-              </div>
+
             </div>
           ) : (
             <div className="stream-placeholder">
