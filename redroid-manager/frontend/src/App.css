@@ -1188,19 +1188,18 @@ input {
 /* ws-scrcpy — ไม่ครอบกรอบมือถือ วางกลางพื้นที่หลัก */
 .scrcpy-shell {
   position: relative;
-  overflow: hidden;
-  border-radius: 12px;
   background: #000;
   border: 1px solid var(--panel-border);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
   flex-shrink: 0;
+  /* ไม่ใช้ overflow:hidden และ border-radius เพราะทำให้ touch coordinate offset */
 }
 
 .scrcpy-shell--auto {
-  width: calc(100% - 32px);
-  height: calc(100% - 32px);
-  max-width: calc(100vw - 48px);
-  max-height: calc(100vh - 100px);
+  width: min(calc(100% - 16px), calc((100vh - 120px) * 9 / 16));
+  aspect-ratio: 9 / 16;
+  max-height: calc(100vh - 120px);
+  height: auto;
 }
 
 /* สัดส่วนประมาณจอ + แถบเครื่องมือขวา */

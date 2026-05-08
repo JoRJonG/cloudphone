@@ -210,7 +210,7 @@ export default function StreamViewer({
               ))}
             </div>
           ) : iframeUrl ? (
-            <div className="stream-center flex-col gap-4">
+            <div className="stream-center">
               <div className={`scrcpy-shell scrcpy-shell--${orientation}`}>
                 <iframe
                   key={`${selectedDevice.id}-${orientation}`}
