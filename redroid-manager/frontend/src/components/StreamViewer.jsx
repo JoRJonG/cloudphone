@@ -46,71 +46,21 @@ export default function StreamViewer({
       // ลบ script/style เก่าถ้ามี (กรณี reload)
       doc.getElementById('__redroid_css')?.remove();
       doc.getElementById('__redroid_js')?.remove();
-      
-      const style = doc.createElement('style');
-      style.id = '__redroid_css';
-      style.textContent = `
-        /* Reset body */
-        html, body {
-          margin: 0 !important;
-          padding: 0 !important;
-          overflow: hidden !important;
-          background: #000 !important;
-          width: 100vw !important;
-          height: 100vh !important;
-        }
-        /* ให้วิดีโอขยายเต็ม container แทนที่จะลอยขึ้นมาทับทั้งหมด */
-        video, canvas {
-          width: 100% !important;
-          height: 100% !important;
-          max-width: 100vw !important;
-          max-height: 100vh !important;
-          object-fit: contain !important;
-          background: #000 !important;
-        }
-      `;
-      doc.head.appendChild(style);
+
+      // ไม่ต้อง Inject CSS ซ่อน Toolbar แล้ว ปล่อยให้แสดงไปตามปกติ
 
       const script = doc.createElement('script');
       script.id = '__redroid_js';
       script.textContent = `
         setInterval(() => {
-          const medias = Array.from(document.querySelectorAll('video, canvas'));
-          if (medias.length === 0) return;
-          
-          medias.forEach(media => {
-              let current = media;
-              while (current && current !== document.body && current.parentElement) {
-                 const parent = current.parentElement;
-                 Array.from(parent.children).forEach(sibling => {
-                     const containsMedia = medias.some(m => sibling.contains(m));
-                     if (!containsMedia && sibling.tagName !== 'STYLE' && sibling.tagName !== 'SCRIPT') {
-                         
-                         const rect = sibling.getBoundingClientRect();
-                         const isVerticalToolbar = rect.width > 0 && rect.width <= 120 && rect.height > 100;
-                         const isHorizontalToolbar = rect.height > 0 && rect.height <= 120 && rect.width > 100;
-                         
-                         const className = sibling.className || '';
-                         const isControlClass = typeof className === 'string' && (className.includes('control-') || className.includes('toolbar') || className.includes('panel'));
-
-                         // ซ่อนเฉพาะ Sibling ที่เป็นแถบเครื่องมือจริงๆ (กันเผลอซ่อนปุ่ม Play Overlay)
-                         if (isVerticalToolbar || isHorizontalToolbar || isControlClass) {
-                             sibling.style.setProperty('display', 'none', 'important');
-                         }
-                     }
-                 });
-                 current = parent;
-              }
-          });
-          
-          // ถ้ามี Overlay Play button ให้กดออโต้เพื่อเล่นวิดีโอ
+          // ถ้ามี Overlay Play button ให้กดออโต้เพื่อเล่นวิดีโอ (ป้องกันจอมืดตอนเริ่ม)
           document.querySelectorAll('button').forEach(btn => {
              const text = btn.innerText || '';
              if (text.toLowerCase().includes('play') && btn.offsetParent !== null) {
                  btn.click();
              }
           });
-        }, 500);
+        }, 1000);
       `;
       doc.body.appendChild(script);
 
@@ -303,15 +253,23 @@ export default function StreamViewer({
                   // ใช้ screen_width/height จาก Docker label ที่ backend return มา
                   const w = selectedDevice?.screen_width  || 720;
                   const h = selectedDevice?.screen_height || 1280;
+                  
+                  // เผื่อความกว้างให้แท็บเมนูของ ws-scrcpy ประมาณ 50px
+                  const TOOLBAR_WIDTH = 50; 
+
                   // คำนวณ aspect-ratio ตาม orientation ที่ user เลือก
                   let ar;
                   if (orientation === 'landscape') {
-                    ar = w >= h ? `${w} / ${h}` : `${h} / ${w}`;
+                    const videoW = Math.max(w, h);
+                    const videoH = Math.min(w, h);
+                    ar = `${videoW + TOOLBAR_WIDTH} / ${videoH}`;
                   } else if (orientation === 'portrait') {
-                    ar = h >= w ? `${w} / ${h}` : `${h} / ${w}`;
+                    const videoW = Math.min(w, h);
+                    const videoH = Math.max(w, h);
+                    ar = `${videoW + TOOLBAR_WIDTH} / ${videoH}`;
                   } else {
                     // auto: ใช้ตาม resolution จริงของ device
-                    ar = `${w} / ${h}`;
+                    ar = `${w + TOOLBAR_WIDTH} / ${h}`;
                   }
                   return { aspectRatio: ar };
                 })()}
