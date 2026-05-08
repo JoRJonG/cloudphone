@@ -36,43 +36,48 @@ export default function StreamViewer({
 
   const iframeRef = useRef(null);
 
-  // Inject CSS เข้า iframe หลัง load — ซ่อน ws-scrcpy toolbar ออก
+  // Inject CSS เข้า iframe หลัง load
+  // Strategy: บังคับ video/canvas ให้ position:fixed ครอบพื้นที่ทั้งหมด + z-index สูงสุด
+  // ทุก element อื่น (sidebar, toolbar, header) จะถูกซ่อนอยู่ข้างใต้โดยอัตโนมัติ
+  // ไม่จำเป็นต้องรู้ class name ของ ws-scrcpy เลย
   const handleIframeLoad = useCallback(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
     try {
       const doc = iframe.contentDocument || iframe.contentWindow?.document;
       if (!doc) return;
+      // ลบ style เก่าถ้ามี (กรณี reload)
+      doc.getElementById('__redroid_css')?.remove();
       const style = doc.createElement('style');
+      style.id = '__redroid_css';
       style.textContent = `
-        /* ซ่อน ws-scrcpy header / toolbar / sidebar ทั้งหมด */
-        header, .header, nav, .navbar, .toolbar, .top-bar,
-        [class*="header"], [class*="toolbar"], [class*="navbar"],
-        [class*="top-bar"], [class*="controls"], aside,
-        [class*="device-control"], [class*="sidebar"],
-        footer, .footer, [class*="footer"],
-        .device-controls, .device-navbar, .right-panel {
-          display: none !important;
-          height: 0 !important;
-          overflow: hidden !important;
-        }
-        /* video/canvas เต็มพื้นที่ */
+        /* Reset body */
         html, body {
-          margin: 0 !important; padding: 0 !important;
-          overflow: hidden !important; background: #000 !important;
-          width: 100% !important; height: 100% !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: hidden !important;
+          background: #000 !important;
+          width: 100vw !important;
+          height: 100vh !important;
         }
+        /* บังคับ video/canvas ลอยขึ้นครอบทุกอย่างใน iframe
+           sidebar, toolbar, header จะถูกซ่อนอยู่ข้างใต้ */
         video, canvas {
-          display: block !important;
-          width: 100% !important; height: 100% !important;
+          position: fixed !important;
+          inset: 0 !important;
+          width: 100vw !important;
+          height: 100vh !important;
           object-fit: contain !important;
+          z-index: 2147483647 !important;
+          background: #000 !important;
         }
       `;
       doc.head.appendChild(style);
     } catch (e) {
-      console.warn('[IFRAME-CSS] Cannot inject:', e);
+      console.warn('[IFRAME-CSS] Cannot inject (cross-origin?):', e);
     }
   }, []);
+
 
   const getIframeUrl = (device) => {
     const ip = device?.ip;
