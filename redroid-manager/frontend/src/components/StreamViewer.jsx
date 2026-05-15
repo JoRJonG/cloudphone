@@ -31,10 +31,57 @@ export default function StreamViewer({
   const [orientation, setOrientation] = useState('auto');
   const [viewerMode, setViewerMode] = useState('focus');
   const [thumbTs, setThumbTs] = useState(() => Date.now());
+  const [shellSize, setShellSize] = useState(null); // { width, height } px คำนวณจาก ResizeObserver
   const isAdmin = currentUser?.role === 'admin';
   const isBusy = selectedDevice && activeDeviceAction?.endsWith(selectedDevice.id);
 
   const iframeRef = useRef(null);
+  const streamCenterRef = useRef(null);
+
+  // คำนวณ aspect-ratio (vw/vh) ตาม orientation และ resolution จริง
+  const getVideoDimensions = useCallback((device, orient) => {
+    const w = device?.screen_width  || 720;
+    const h = device?.screen_height || 1280;
+    const TOOLBAR_WIDTH = 50; // ความกว้างแถบปุ่มด้านข้างของ ws-scrcpy
+    if (orient === 'landscape') {
+      return { vw: Math.max(w, h) + TOOLBAR_WIDTH, vh: Math.min(w, h) };
+    } else {
+      // portrait และ auto → normalize ให้เป็นแนวตั้งเสมอ
+      return { vw: Math.min(w, h) + TOOLBAR_WIDTH, vh: Math.max(w, h) };
+    }
+  }, []);
+
+  // ResizeObserver: คำนวณขนาด shell แบบ object-fit: contain
+  useEffect(() => {
+    const el = streamCenterRef.current;
+    if (!el || !selectedDevice) return;
+
+    const compute = () => {
+      const cw = el.clientWidth;
+      const ch = el.clientHeight;
+      if (!cw || !ch) return;
+
+      const { vw, vh } = getVideoDimensions(selectedDevice, orientation);
+      const ar = vw / vh;
+
+      let width, height;
+      if (cw / ch >= ar) {
+        // container กว้างกว่า → constrain ด้วย height
+        height = ch;
+        width  = ch * ar;
+      } else {
+        // container สูงกว่า → constrain ด้วย width
+        width  = cw;
+        height = cw / ar;
+      }
+      setShellSize({ width: Math.floor(width), height: Math.floor(height) });
+    };
+
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [selectedDevice, orientation, getVideoDimensions]);
 
   const handleIframeLoad = useCallback(() => {
     const iframe = iframeRef.current;
@@ -246,35 +293,12 @@ export default function StreamViewer({
               ))}
             </div>
           ) : iframeUrl ? (
-            <div className="stream-center">
+            <div className="stream-center" ref={streamCenterRef}>
               <div
                 className={`scrcpy-shell scrcpy-shell--${orientation}`}
-                style={(() => {
-                  // ใช้ screen_width/height จาก Docker label ที่ backend return มา
-                  const w = selectedDevice?.screen_width  || 720;
-                  const h = selectedDevice?.screen_height || 1280;
-                  
-                  // เผื่อความกว้างให้แท็บเมนูของ ws-scrcpy ประมาณ 50px
-                  const TOOLBAR_WIDTH = 50; 
-
-                  // คำนวณ aspect-ratio ตาม orientation ที่ user เลือก
-                  let ar;
-                  if (orientation === 'landscape') {
-                    const videoW = Math.max(w, h);
-                    const videoH = Math.min(w, h);
-                    ar = `${videoW + TOOLBAR_WIDTH} / ${videoH}`;
-                  } else if (orientation === 'portrait') {
-                    const videoW = Math.min(w, h);
-                    const videoH = Math.max(w, h);
-                    ar = `${videoW + TOOLBAR_WIDTH} / ${videoH}`;
-                  } else {
-                    // auto: normalize ให้ถูกทิศก่อน (portrait = h > w)
-                    const autoW = Math.min(w, h); // ด้านสั้น = width (portrait)
-                    const autoH = Math.max(w, h); // ด้านยาว = height (portrait)
-                    ar = `${autoW + TOOLBAR_WIDTH} / ${autoH}`;
-                  }
-                  return { aspectRatio: ar, height: '100%' };
-                })()}
+                style={shellSize
+                  ? { width: `${shellSize.width}px`, height: `${shellSize.height}px` }
+                  : {}}
               >
                 <iframe
                   key={`${selectedDevice.id}-${orientation}`}
@@ -288,8 +312,6 @@ export default function StreamViewer({
                   tabIndex={0}
                 />
               </div>
-
-
             </div>
 
           ) : (
