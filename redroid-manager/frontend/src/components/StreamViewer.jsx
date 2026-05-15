@@ -100,25 +100,30 @@ export default function StreamViewer({
 
             var allInputs = Array.from(document.querySelectorAll('input'));
             var numInputs = allInputs.filter(function(i) {
-              return i.type === 'number' || (i.type === 'text' && /^\\d+$/.test((i.value || '').trim()));
+              return i.type === 'number' || (i.type === 'text' && /^\\d*$/.test(i.value.trim()));
             });
 
             var wInput = null, hInput = null;
 
             allInputs.forEach(function(inp) {
-              var container = inp.closest('tr, div, p, label') || inp.parentElement;
-              var label = (container ? container.innerText : '').toLowerCase();
-              if (label.includes('max width') || label.includes('width')) {
-                if (!wInput) wInput = inp;
-              }
-              if (label.includes('max height') || label.includes('height')) {
-                if (!hInput) hInput = inp;
+              // หา label หรือ parent ที่ครอบอยู่ และมีความยาวข้อความไม่เกิน 50 ตัวอักษร
+              // เพื่อป้องกันการเหมารวม text ของทั้ง panel
+              var text = '';
+              if (inp.parentElement) text += inp.parentElement.innerText;
+              if (inp.previousSibling && inp.previousSibling.nodeType === 3) text += inp.previousSibling.nodeValue;
+              
+              text = text.toLowerCase();
+              if (text.length < 50) {
+                if (text.includes('width')) wInput = inp;
+                if (text.includes('height')) hInput = inp;
               }
             });
 
             if (!wInput || !hInput) {
-              wInput = numInputs[numInputs.length - 2];
-              hInput = numInputs[numInputs.length - 1];
+              if (numInputs.length >= 2) {
+                wInput = numInputs[numInputs.length - 2];
+                hInput = numInputs[numInputs.length - 1];
+              }
             }
 
             if (!wInput || !hInput) return;
