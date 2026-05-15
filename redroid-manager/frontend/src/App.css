@@ -416,13 +416,13 @@ input {
   /* ไม่ใช้ flex/padding แล้ว — ปล่อยให้ .stream-center เต็ม 100% */
 }
 
-/* ศูนย์กลางพื้นที่สตรีม — absolute fill iframe-container */
+/* พื้นที่สตรีม — เต็ม iframe-container ทั้งหมด */
 .stream-center {
   position: absolute;
   inset: 0;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: stretch;
   overflow: hidden;
 }
 
@@ -1236,21 +1236,13 @@ input {
   box-shadow: 0 0 8px var(--primary-glow);
 }
 
-/* ws-scrcpy — ขนาดถูกคำนวณโดย ResizeObserver ใน JS (object-fit: contain) */
-.scrcpy-shell {
-  position: relative;
-  background: #000;
-  border: 1px solid var(--panel-border);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-  flex-shrink: 0;
-  /* width และ height มาจาก inline style ที่ JS คำนวณให้ */
-}
-
+/* ws-scrcpy frame — เต็มพื้นที่ fitToScreen จาก ws-scrcpy จัดการ scaling */
 .scrcpy-iframe {
   display: block;
   width: 100%;
   height: 100%;
   border: none;
+  flex: 1;
 }
 /* Feature Selection in DeviceForm */
 .feature-selection {

@@ -31,57 +31,10 @@ export default function StreamViewer({
   const [orientation, setOrientation] = useState('auto');
   const [viewerMode, setViewerMode] = useState('focus');
   const [thumbTs, setThumbTs] = useState(() => Date.now());
-  const [shellSize, setShellSize] = useState(null); // { width, height } px คำนวณจาก ResizeObserver
   const isAdmin = currentUser?.role === 'admin';
   const isBusy = selectedDevice && activeDeviceAction?.endsWith(selectedDevice.id);
 
   const iframeRef = useRef(null);
-  const streamCenterRef = useRef(null);
-
-  // คำนวณ aspect-ratio (vw/vh) ตาม orientation และ resolution จริง
-  const getVideoDimensions = useCallback((device, orient) => {
-    const w = device?.screen_width  || 720;
-    const h = device?.screen_height || 1280;
-    const TOOLBAR_WIDTH = 50; // ความกว้างแถบปุ่มด้านข้างของ ws-scrcpy
-    if (orient === 'landscape') {
-      return { vw: Math.max(w, h) + TOOLBAR_WIDTH, vh: Math.min(w, h) };
-    } else {
-      // portrait และ auto → normalize ให้เป็นแนวตั้งเสมอ
-      return { vw: Math.min(w, h) + TOOLBAR_WIDTH, vh: Math.max(w, h) };
-    }
-  }, []);
-
-  // ResizeObserver: คำนวณขนาด shell แบบ object-fit: contain
-  useEffect(() => {
-    const el = streamCenterRef.current;
-    if (!el || !selectedDevice) return;
-
-    const compute = () => {
-      const cw = el.clientWidth;
-      const ch = el.clientHeight;
-      if (!cw || !ch) return;
-
-      const { vw, vh } = getVideoDimensions(selectedDevice, orientation);
-      const ar = vw / vh;
-
-      let width, height;
-      if (cw / ch >= ar) {
-        // container กว้างกว่า → constrain ด้วย height
-        height = ch;
-        width  = ch * ar;
-      } else {
-        // container สูงกว่า → constrain ด้วย width
-        width  = cw;
-        height = cw / ar;
-      }
-      setShellSize({ width: Math.floor(width), height: Math.floor(height) });
-    };
-
-    compute();
-    const ro = new ResizeObserver(compute);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [selectedDevice, orientation, getVideoDimensions]);
 
   // Inject JS เข้า iframe: auto-play + ตั้ง video resolution ตาม device
   const handleIframeLoad = useCallback(() => {
@@ -116,19 +69,13 @@ export default function StreamViewer({
           function applyVideoSettings() {
             if (videoSettingsApplied) return;
 
-            // หา input ทั้งหมดที่เป็นตัวเลข
             var allInputs = Array.from(document.querySelectorAll('input'));
             var numInputs = allInputs.filter(function(i) {
               return i.type === 'number' || (i.type === 'text' && /^\\d+$/.test((i.value || '').trim()));
             });
 
-            // ws-scrcpy layout: bitrate, max_fps, i_frame_interval, max_width, max_height
-            // เราต้องการ 2 ตัวสุดท้าย
-            if (numInputs.length < 2) return;
-
             var wInput = null, hInput = null;
 
-            // พยายามหาจาก label ก่อน
             allInputs.forEach(function(inp) {
               var container = inp.closest('tr, div, p, label') || inp.parentElement;
               var label = (container ? container.innerText : '').toLowerCase();
@@ -140,7 +87,6 @@ export default function StreamViewer({
               }
             });
 
-            // fallback: 2 ตัวสุดท้ายใน numInputs
             if (!wInput || !hInput) {
               wInput = numInputs[numInputs.length - 2];
               hInput = numInputs[numInputs.length - 1];
@@ -148,7 +94,6 @@ export default function StreamViewer({
 
             if (!wInput || !hInput) return;
 
-            // ถ้าค่าตรงแล้ว ข้ามได้
             if (parseInt(wInput.value) === TARGET_W && parseInt(hInput.value) === TARGET_H) {
               videoSettingsApplied = true;
               return;
@@ -157,7 +102,6 @@ export default function StreamViewer({
             setNativeValue(wInput, TARGET_W);
             setNativeValue(hInput, TARGET_H);
 
-            // หาปุ่ม "Change video settings" แล้วกด
             var btns = document.querySelectorAll('button, input[type="button"], input[type="submit"]');
             for (var i = 0; i < btns.length; i++) {
               var label = (btns[i].innerText || btns[i].value || '').toLowerCase();
@@ -179,7 +123,6 @@ export default function StreamViewer({
             });
           }
 
-          // รันทุก 1 วินาที จนกว่าจะสำเร็จ (หยุดหลัง 30 วินาที)
           var interval = setInterval(function() {
             autoPlay();
             applyVideoSettings();
@@ -205,16 +148,13 @@ export default function StreamViewer({
 
     const udid = `${ip.trim()}:5555`;
 
-    // wsUrl ผ่าน backend proxy (/api/stream/) — ไม่เปิด port 8001 สู่ public
     const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws';
     const wsBase = `${wsProto}://${window.location.host}`;
     const wsUrl = `${wsBase}/api/stream/?action=proxy-adb&remote=tcp:8886&udid=${encodeURIComponent(udid)}`;
 
-    // ใช้ resolution จาก Docker label ที่ตั้งตอนสร้างเครื่อง (fallback 1280x720)
     const screenW = device?.screen_width  || 1280;
     const screenH = device?.screen_height || 720;
 
-    // iframe ชี้ผ่าน backend HTTP proxy /api/stream/ (ต้อง login แล้ว)
     const httpBase = window.location.origin;
     return `${httpBase}/api/stream/#!action=stream&udid=${encodeURIComponent(udid)}&player=broadway&hide-header=1&hide-navbar=1&hide-footer=1&hide-menu=1&fitToScreen=true&keyboard=true&mouse=true&gamepad=true&max-width=${screenW}&max-height=${screenH}&ws=${encodeURIComponent(wsUrl)}`;
   };
@@ -232,6 +172,7 @@ export default function StreamViewer({
 
   const getThumbnailUrl = (device) =>
     `/api/devices/${device.id}/thumbnail?t=${thumbTs}`;
+
   const combinedLogs = [
     '=== DEVICE LOG TAIL ===',
     diagnostics?.container_logs || 'No device logs available.',
@@ -333,7 +274,7 @@ export default function StreamViewer({
       </div>
 
       <div className="viewer-layout">
-        <div className="iframe-container relative">
+        <div className="iframe-container">
           {viewerMode === 'wall' && previewDevices.length > 0 ? (
             <div className="preview-wall">
               {previewDevices.map((device) => (
@@ -351,7 +292,6 @@ export default function StreamViewer({
                     <span className={`preview-pill ${device.runtime_stage}`}>{device.status_label}</span>
                   </div>
 
-                  {/* ใช้ img snapshot แทน iframe เพื่อประหยัด WebSocket connection */}
                   <div className="preview-tile-screen">
                     <img
                       src={getThumbnailUrl(device)}
@@ -376,27 +316,19 @@ export default function StreamViewer({
               ))}
             </div>
           ) : iframeUrl ? (
-            <div className="stream-center" ref={streamCenterRef}>
-              <div
-                className={`scrcpy-shell scrcpy-shell--${orientation}`}
-                style={shellSize
-                  ? { width: `${shellSize.width}px`, height: `${shellSize.height}px` }
-                  : {}}
-              >
-                <iframe
-                  key={`${selectedDevice.id}-${orientation}`}
-                  src={iframeUrl}
-                  title="ws-scrcpy stream"
-                  allow="fullscreen; clipboard-read; clipboard-write; gamepad"
-                  ref={iframeRef}
-                  onLoad={handleIframeLoad}
-                  className="scrcpy-iframe"
-                  style={{ background: 'transparent' }}
-                  tabIndex={0}
-                />
-              </div>
+            <div className="stream-center">
+              <iframe
+                key={`${selectedDevice.id}-${orientation}`}
+                src={iframeUrl}
+                title="ws-scrcpy stream"
+                allow="fullscreen; clipboard-read; clipboard-write; gamepad"
+                ref={iframeRef}
+                onLoad={handleIframeLoad}
+                className="scrcpy-iframe"
+                style={{ background: 'transparent' }}
+                tabIndex={0}
+              />
             </div>
-
           ) : (
             <div className="stream-placeholder">
               <div className="placeholder-icon">
