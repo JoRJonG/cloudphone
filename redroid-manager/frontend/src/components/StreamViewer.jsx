@@ -131,9 +131,13 @@ export default function StreamViewer({
     const wsBase = `${wsProto}://${window.location.host}`;
     const wsUrl = `${wsBase}/api/stream/?action=proxy-adb&remote=tcp:8886&udid=${encodeURIComponent(udid)}`;
 
+    // ใช้ resolution จาก Docker label ที่ตั้งตอนสร้างเครื่อง (fallback 1280x720)
+    const screenW = device?.screen_width  || 1280;
+    const screenH = device?.screen_height || 720;
+
     // iframe ชี้ผ่าน backend HTTP proxy /api/stream/ (ต้อง login แล้ว)
     const httpBase = window.location.origin;
-    return `${httpBase}/api/stream/#!action=stream&udid=${encodeURIComponent(udid)}&player=broadway&hide-header=1&hide-navbar=1&hide-footer=1&hide-menu=1&fitToScreen=true&keyboard=true&mouse=true&gamepad=true&ws=${encodeURIComponent(wsUrl)}`;
+    return `${httpBase}/api/stream/#!action=stream&udid=${encodeURIComponent(udid)}&player=broadway&hide-header=1&hide-navbar=1&hide-footer=1&hide-menu=1&fitToScreen=true&keyboard=true&mouse=true&gamepad=true&max-width=${screenW}&max-height=${screenH}&ws=${encodeURIComponent(wsUrl)}`;
   };
 
   const iframeUrl = getIframeUrl(selectedDevice);
