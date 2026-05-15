@@ -79,6 +79,7 @@ export default function StreamViewer({
       // Resolution เป้าหมาย (จาก Docker label ของ device)
       const targetW = selectedDevice?.screen_width  || 1280;
       const targetH = selectedDevice?.screen_height || 720;
+      const targetFps = selectedDevice?.screen_fps  || 45;
 
       const script = doc.createElement('script');
       script.id = '__redroid_js';
@@ -86,6 +87,7 @@ export default function StreamViewer({
         (function() {
           var TARGET_W = ${targetW};
           var TARGET_H = ${targetH};
+          var TARGET_FPS = ${targetFps};
           var videoSettingsApplied = false;
 
           function setNativeValue(el, value) {
@@ -103,7 +105,7 @@ export default function StreamViewer({
               return i.type === 'number' || (i.type === 'text' && /^\\d*$/.test(i.value.trim()));
             });
 
-            var wInput = null, hInput = null;
+            var wInput = null, hInput = null, fpsInput = null;
 
             allInputs.forEach(function(inp) {
               // หา label หรือ parent ที่ครอบอยู่ และมีความยาวข้อความไม่เกิน 50 ตัวอักษร
@@ -116,6 +118,7 @@ export default function StreamViewer({
               if (text.length < 50) {
                 if (text.includes('width')) wInput = inp;
                 if (text.includes('height')) hInput = inp;
+                if (text.includes('fps') || text.includes('framerate')) fpsInput = inp;
               }
             });
 
@@ -128,13 +131,18 @@ export default function StreamViewer({
 
             if (!wInput || !hInput) return;
 
-            if (parseInt(wInput.value) === TARGET_W && parseInt(hInput.value) === TARGET_H) {
+            var wOk = parseInt(wInput.value) === TARGET_W;
+            var hOk = parseInt(hInput.value) === TARGET_H;
+            var fpsOk = !fpsInput || parseInt(fpsInput.value) === TARGET_FPS;
+
+            if (wOk && hOk && fpsOk) {
               videoSettingsApplied = true;
               return;
             }
 
             setNativeValue(wInput, TARGET_W);
             setNativeValue(hInput, TARGET_H);
+            if (fpsInput) setNativeValue(fpsInput, TARGET_FPS);
 
             var btns = document.querySelectorAll('button, input[type="button"], input[type="submit"]');
             for (var i = 0; i < btns.length; i++) {
@@ -142,7 +150,7 @@ export default function StreamViewer({
               if (label.includes('change video') || label.includes('apply')) {
                 btns[i].click();
                 videoSettingsApplied = true;
-                console.log('[REDROID] Video settings applied: ' + TARGET_W + 'x' + TARGET_H);
+                console.log('[REDROID] Video settings applied: ' + TARGET_W + 'x' + TARGET_H + ' @' + TARGET_FPS + 'fps');
                 break;
               }
             }
@@ -188,9 +196,10 @@ export default function StreamViewer({
 
     const screenW = device?.screen_width  || 1280;
     const screenH = device?.screen_height || 720;
+    const screenFps = device?.screen_fps || 45;
 
     const httpBase = window.location.origin;
-    return `${httpBase}/api/stream/#!action=stream&udid=${encodeURIComponent(udid)}&player=broadway&hide-header=1&hide-navbar=1&hide-footer=1&hide-menu=1&fitToScreen=true&keyboard=true&mouse=true&gamepad=true&max-width=${screenW}&max-height=${screenH}&ws=${encodeURIComponent(wsUrl)}`;
+    return `${httpBase}/api/stream/#!action=stream&udid=${encodeURIComponent(udid)}&player=broadway&hide-header=1&hide-navbar=1&hide-footer=1&hide-menu=1&fitToScreen=true&keyboard=true&mouse=true&gamepad=true&max-width=${screenW}&max-height=${screenH}&max-fps=${screenFps}&ws=${encodeURIComponent(wsUrl)}`;
   };
 
   const iframeUrl = getIframeUrl(selectedDevice);
@@ -404,6 +413,16 @@ export default function StreamViewer({
                 <span className="mono">IMAGE: {selectedDevice.image || 'UNKNOWN'}</span>
                 <span className="mono">IP: {selectedDevice.ip || 'WAITING_DHCP'}</span>
                 <span className="mono">ADB: {(selectedDevice.adb_state || 'disconnected').toUpperCase()}</span>
+                {selectedDevice.screen_width && (
+                  <span className="mono">
+                    DISPLAY: {selectedDevice.screen_width}x{selectedDevice.screen_height} @{selectedDevice.screen_fps || 45}FPS {selectedDevice.screen_dpi}DPI
+                  </span>
+                )}
+                {(selectedDevice.cpu_cores || selectedDevice.memory_limit) && (
+                  <span className="mono">
+                    HW: {selectedDevice.cpu_cores ? `${selectedDevice.cpu_cores}C ` : ''}{selectedDevice.memory_limit ? selectedDevice.memory_limit : ''}
+                  </span>
+                )}
               </div>
 
               <div className="checks-grid">
