@@ -268,10 +268,12 @@ export default function StreamViewer({
                     const videoH = Math.max(w, h);
                     ar = `${videoW + TOOLBAR_WIDTH} / ${videoH}`;
                   } else {
-                    // auto: ใช้ตาม resolution จริงของ device
-                    ar = `${w + TOOLBAR_WIDTH} / ${h}`;
+                    // auto: normalize ให้ถูกทิศก่อน (portrait = h > w)
+                    const autoW = Math.min(w, h); // ด้านสั้น = width (portrait)
+                    const autoH = Math.max(w, h); // ด้านยาว = height (portrait)
+                    ar = `${autoW + TOOLBAR_WIDTH} / ${autoH}`;
                   }
-                  return { aspectRatio: ar };
+                  return { aspectRatio: ar, height: '100%' };
                 })()}
               >
                 <iframe

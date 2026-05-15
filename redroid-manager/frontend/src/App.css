@@ -1242,16 +1242,19 @@ input {
   box-shadow: 0 0 8px var(--primary-glow);
 }
 
-/* ws-scrcpy — ไม่ครอบกรอบมือถือ วางกลางพื้นที่หลัก */
+/* ws-scrcpy — scale พอดีพื้นที่ ทั้งแนวตั้งและแนวนอน */
 .scrcpy-shell {
   position: relative;
   background: #000;
   border: 1px solid var(--panel-border);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-  flex-shrink: 0;
-  
-  /* Shrink-wrap ให้สเกลพอดีหน้าจอ */
-  height: 100%;
+
+  /*
+   * aspect-ratio + height ถูกกำหนดจาก inline style (JSX)
+   * max-width: 100% → กันล้น container ในแนวนอน (landscape)
+   * max-height: 100% → กันล้น container ในแนวตั้ง (portrait)
+   */
+  width: auto;
   max-width: 100%;
   max-height: 100%;
 }
