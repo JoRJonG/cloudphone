@@ -9,5 +9,5 @@ python-multipart
 requests
 tqdm
 Pillow
-websockets
+
 httpx

@@ -1,11 +1,24 @@
 services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - redroid_net
+    restart: unless-stopped
+    depends_on:
+      - redroid-manager
+      - ws-scrcpy
+
   redroid-manager:
     build: .
-    ports:
-      - "8000:8000"
+    # ไม่ expose port ออก public อีกต่อไป — Nginx รับแทน
+    expose:
+      - "8000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      # mount SQLite file ออกมาข้างนอก เพื่อให้ข้อมูลไม่หายเมื่อ restart container
       - sqlite_data:/app/data
     env_file:
       - .env
@@ -17,8 +30,7 @@ services:
 
   ws-scrcpy:
     image: scavin/ws-scrcpy
-    # ไม่ expose port ออก public — เข้าได้เฉพาะ backend ผ่าน internal Docker network
-    # (ไม่มี ports: - "8001:8000" อีกต่อไป)
+    # อยู่ใน internal network เท่านั้น
     networks:
       - redroid_net
     restart: unless-stopped
@@ -30,5 +42,5 @@ networks:
     driver: bridge
 
 volumes:
-  # volume สำหรับ SQLite database file แทน MariaDB
   sqlite_data:
+

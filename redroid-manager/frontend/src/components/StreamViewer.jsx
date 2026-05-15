@@ -86,7 +86,7 @@ export default function StreamViewer({
 
     // iframe ชี้ผ่าน backend HTTP proxy /api/stream/ (ต้อง login แล้ว)
     const httpBase = window.location.origin;
-    return `${httpBase}/api/stream/#!action=stream&udid=${encodeURIComponent(udid)}&player=mse&hide-header=1&hide-navbar=1&hide-footer=1&hide-menu=1&fitToScreen=true&keyboard=true&mouse=true&gamepad=true&ws=${encodeURIComponent(wsUrl)}`;
+    return `${httpBase}/api/stream/#!action=stream&udid=${encodeURIComponent(udid)}&player=broadway&hide-header=1&hide-navbar=1&hide-footer=1&hide-menu=1&fitToScreen=true&keyboard=true&mouse=true&gamepad=true&ws=${encodeURIComponent(wsUrl)}`;
   };
 
   const iframeUrl = getIframeUrl(selectedDevice);

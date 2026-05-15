@@ -1288,56 +1288,8 @@ async def install_apk(
 # Forward query string ทั้งหมดไปด้วย (action, udid, remote)
 # เพื่อให้ ws-scrcpy รู้ว่าต้องการ stream ไปที่ device ใด
 # ============================================================
-import websockets
-
-@app.websocket("/api/stream/")
-async def ws_scrcpy_proxy(websocket: WebSocket):
-    """Proxy WebSocket ไปยัง ws-scrcpy พร้อม forward query string"""
-    # รับ query string จาก client (เช่น ?action=proxy-adb&udid=...&remote=tcp:8886)
-    query_string = websocket.scope.get("query_string", b"").decode("utf-8")
-    upstream_url = "ws://ws-scrcpy:8000/"
-    if query_string:
-        upstream_url = f"ws://ws-scrcpy:8000/?{query_string}"
-
-    await websocket.accept()
-    client_info = websocket.client
-    print(f"[WS-PROXY] Client: {client_info} → Upstream: {upstream_url}")
-
-    try:
-        async with websockets.connect(upstream_url) as upstream:
-            print(f"[WS-PROXY] Connected to upstream: {upstream_url}")
-
-            async def client_to_upstream():
-                try:
-                    while True:
-                        data = await websocket.receive_bytes()
-                        await upstream.send(data)
-                except (WebSocketDisconnect, Exception):
-                    pass
-
-            async def upstream_to_client():
-                try:
-                    async for message in upstream:
-                        if isinstance(message, bytes):
-                            await websocket.send_bytes(message)
-                        else:
-                            await websocket.send_text(message)
-                except Exception as e:
-                    print(f"[WS-PROXY] upstream_to_client error: {e}")
-
-            await asyncio.gather(
-                client_to_upstream(),
-                upstream_to_client(),
-                return_exceptions=True
-            )
-    except Exception as e:
-        print(f"[WS-PROXY] Connection error: {e}")
-    finally:
-        print(f"[WS-PROXY] Session closed for {client_info}")
-        try:
-            await websocket.close()
-        except Exception:
-            pass
+# WS Proxy ถูกย้ายให้ Nginx จัดการแทน (nginx/nginx.conf)
+# ลด latency: frame ไม่ผ่าน Python asyncio อีกต่อไป
 
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -1366,40 +1318,8 @@ async def proxy_scrcpy_file(
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"ws-scrcpy unavailable: {e}")
 
-@api_router.get("/stream")
-@api_router.get("/stream/")
-async def proxy_scrcpy_index(current_user: User = Depends(get_current_user)):
-    """Proxy ws-scrcpy index page พร้อม rewrite relative asset paths (ต้อง login ก่อน)"""
-    import httpx
-    import re
-    try:
-        async with httpx.AsyncClient() as http:
-            resp = await http.get("http://ws-scrcpy:8000/", follow_redirects=True)
-
-        html = resp.content.decode("utf-8", errors="replace")
-
-        # Rewrite relative asset URLs ให้ชี้ผ่าน /api/stream/
-        # เช่น href="main.css" → href="/api/stream/main.css"
-        # เช่น src="bundle.js" → src="/api/stream/bundle.js"
-        def rewrite_attr(m):
-            attr, val = m.group(1), m.group(2)
-            # ข้ามถ้าเป็น empty, absolute URL, data URI หรือ hash
-            if not val or val.startswith(('http://', 'https://', '//', 'data:', '#')):
-                return m.group(0)
-            # attr คือ 'href="' หรือ 'src="' อยู่แล้ว — ไม่ต้องใส่ =" อีก
-            if val.startswith('/'):
-                return f'{attr}/api/stream{val}"'
-            return f'{attr}/api/stream/{val}"'
-
-        html = re.sub(r'((?:href|src)=")([^"]*)"', rewrite_attr, html)
-
-        return Response(
-            content=html.encode("utf-8"),
-            status_code=resp.status_code,
-            media_type="text/html; charset=utf-8",
-        )
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"ws-scrcpy unavailable: {e}")
+# /api/stream/ และ /api/stream/{path} ถูกย้ายให้ Nginx proxy โดยตรง
+# (ดู nginx/nginx.conf)
 
 # Register API routes ก่อน static files เสมอ เพื่อป้องกัน catch-all ดักจับ API requests
 app.include_router(api_router)
