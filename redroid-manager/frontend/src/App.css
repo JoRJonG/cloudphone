@@ -452,14 +452,13 @@ input {
 }
 
 .device-frame iframe {
-  width: 112%; /* ขยายเพื่อดัน sidebar ขวาออกไปให้พ้นกรอบ (แนวตั้ง) */
+  width: 100%;
   height: 100%;
   border: none;
   border-radius: 0;
-  background: #000;
+  background: transparent;
   display: block;
   margin: 0;
-  margin-left: 0;
   position: relative;
   z-index: 1;
 }

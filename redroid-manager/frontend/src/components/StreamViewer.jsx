@@ -44,8 +44,37 @@ export default function StreamViewer({
       const doc = iframe.contentDocument || iframe.contentWindow?.document;
       if (!doc) return;
 
-      // ลบ script เก่าถ้ามี (กรณี reload)
+      // ลบ script/style เก่าถ้ามี (กรณี reload)
       doc.getElementById('__redroid_js')?.remove();
+      doc.getElementById('__redroid_css')?.remove();
+
+      // ฉีด CSS เพื่อให้ iframe ไม่มี scrollbar และจัดกึ่งกลางพอดี
+      const style = doc.createElement('style');
+      style.id = '__redroid_css';
+      style.textContent = `
+        html, body {
+          margin: 0 !important;
+          padding: 0 !important;
+          width: 100% !important;
+          height: 100% !important;
+          overflow: hidden !important;
+          background: transparent !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+        }
+        /* Container หลักของ scrcpy */
+        #app, .device-view, .scrcpy-container {
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          width: 100% !important;
+          height: 100% !important;
+        }
+        /* ซ่อน scrollbar */
+        ::-webkit-scrollbar { display: none !important; }
+      `;
+      doc.head.appendChild(style);
 
       // Resolution เป้าหมาย (จาก Docker label ของ device)
       const targetW = selectedDevice?.screen_width  || 1280;
@@ -317,17 +346,19 @@ export default function StreamViewer({
             </div>
           ) : iframeUrl ? (
             <div className="stream-center">
-              <iframe
-                key={`${selectedDevice.id}-${orientation}`}
-                src={iframeUrl}
-                title="ws-scrcpy stream"
-                allow="fullscreen; clipboard-read; clipboard-write; gamepad"
-                ref={iframeRef}
-                onLoad={handleIframeLoad}
-                className="scrcpy-iframe"
-                style={{ background: 'transparent' }}
-                tabIndex={0}
-              />
+              <div className={`device-frame ${orientation === 'auto' ? '' : orientation}`}>
+                <iframe
+                  key={`${selectedDevice.id}-${orientation}`}
+                  src={iframeUrl}
+                  title="ws-scrcpy stream"
+                  allow="fullscreen; clipboard-read; clipboard-write; gamepad"
+                  ref={iframeRef}
+                  onLoad={handleIframeLoad}
+                  className="scrcpy-iframe"
+                  style={{ background: 'transparent' }}
+                  tabIndex={0}
+                />
+              </div>
             </div>
           ) : (
             <div className="stream-placeholder">
