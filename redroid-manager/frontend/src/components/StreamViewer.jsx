@@ -360,7 +360,16 @@ export default function StreamViewer({
             </div>
           ) : iframeUrl ? (
             <div className="stream-center">
-              <div className={`device-frame ${orientation === 'auto' ? '' : orientation}`}>
+              <div
+                className={`device-frame ${orientation === 'auto' ? '' : orientation}`}
+                style={
+                  orientation === 'portrait'
+                    ? { aspectRatio: `${selectedDevice?.screen_width || 720} / ${selectedDevice?.screen_height || 1280}` }
+                    : orientation === 'landscape'
+                    ? { aspectRatio: `${selectedDevice?.screen_height || 1280} / ${selectedDevice?.screen_width || 720}` }
+                    : {}
+                }
+              >
                 <iframe
                   key={`${selectedDevice.id}-${orientation}`}
                   src={iframeUrl}
