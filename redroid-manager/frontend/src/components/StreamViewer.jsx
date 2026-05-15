@@ -83,38 +83,117 @@ export default function StreamViewer({
     return () => ro.disconnect();
   }, [selectedDevice, orientation, getVideoDimensions]);
 
+  // Inject JS เข้า iframe: auto-play + ตั้ง video resolution ตาม device
   const handleIframeLoad = useCallback(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
     try {
       const doc = iframe.contentDocument || iframe.contentWindow?.document;
       if (!doc) return;
-      
-      // ลบ script/style เก่าถ้ามี (กรณี reload)
-      doc.getElementById('__redroid_css')?.remove();
+
+      // ลบ script เก่าถ้ามี (กรณี reload)
       doc.getElementById('__redroid_js')?.remove();
 
-      // ไม่ต้อง Inject CSS ซ่อน Toolbar แล้ว ปล่อยให้แสดงไปตามปกติ
+      // Resolution เป้าหมาย (จาก Docker label ของ device)
+      const targetW = selectedDevice?.screen_width  || 1280;
+      const targetH = selectedDevice?.screen_height || 720;
 
       const script = doc.createElement('script');
       script.id = '__redroid_js';
       script.textContent = `
-        setInterval(() => {
-          // ถ้ามี Overlay Play button ให้กดออโต้เพื่อเล่นวิดีโอ (ป้องกันจอมืดตอนเริ่ม)
-          document.querySelectorAll('button').forEach(btn => {
-             const text = btn.innerText || '';
-             if (text.toLowerCase().includes('play') && btn.offsetParent !== null) {
-                 btn.click();
-             }
-          });
-        }, 1000);
+        (function() {
+          var TARGET_W = ${targetW};
+          var TARGET_H = ${targetH};
+          var videoSettingsApplied = false;
+
+          function setNativeValue(el, value) {
+            var nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
+            if (nativeSetter && nativeSetter.set) nativeSetter.set.call(el, String(value));
+            el.dispatchEvent(new Event('input',  { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+
+          function applyVideoSettings() {
+            if (videoSettingsApplied) return;
+
+            // หา input ทั้งหมดที่เป็นตัวเลข
+            var allInputs = Array.from(document.querySelectorAll('input'));
+            var numInputs = allInputs.filter(function(i) {
+              return i.type === 'number' || (i.type === 'text' && /^\\d+$/.test((i.value || '').trim()));
+            });
+
+            // ws-scrcpy layout: bitrate, max_fps, i_frame_interval, max_width, max_height
+            // เราต้องการ 2 ตัวสุดท้าย
+            if (numInputs.length < 2) return;
+
+            var wInput = null, hInput = null;
+
+            // พยายามหาจาก label ก่อน
+            allInputs.forEach(function(inp) {
+              var container = inp.closest('tr, div, p, label') || inp.parentElement;
+              var label = (container ? container.innerText : '').toLowerCase();
+              if (label.includes('max width') || label.includes('width')) {
+                if (!wInput) wInput = inp;
+              }
+              if (label.includes('max height') || label.includes('height')) {
+                if (!hInput) hInput = inp;
+              }
+            });
+
+            // fallback: 2 ตัวสุดท้ายใน numInputs
+            if (!wInput || !hInput) {
+              wInput = numInputs[numInputs.length - 2];
+              hInput = numInputs[numInputs.length - 1];
+            }
+
+            if (!wInput || !hInput) return;
+
+            // ถ้าค่าตรงแล้ว ข้ามได้
+            if (parseInt(wInput.value) === TARGET_W && parseInt(hInput.value) === TARGET_H) {
+              videoSettingsApplied = true;
+              return;
+            }
+
+            setNativeValue(wInput, TARGET_W);
+            setNativeValue(hInput, TARGET_H);
+
+            // หาปุ่ม "Change video settings" แล้วกด
+            var btns = document.querySelectorAll('button, input[type="button"], input[type="submit"]');
+            for (var i = 0; i < btns.length; i++) {
+              var label = (btns[i].innerText || btns[i].value || '').toLowerCase();
+              if (label.includes('change video') || label.includes('apply')) {
+                btns[i].click();
+                videoSettingsApplied = true;
+                console.log('[REDROID] Video settings applied: ' + TARGET_W + 'x' + TARGET_H);
+                break;
+              }
+            }
+          }
+
+          function autoPlay() {
+            document.querySelectorAll('button').forEach(function(btn) {
+              var text = btn.innerText || '';
+              if (text.toLowerCase().includes('play') && btn.offsetParent !== null) {
+                btn.click();
+              }
+            });
+          }
+
+          // รันทุก 1 วินาที จนกว่าจะสำเร็จ (หยุดหลัง 30 วินาที)
+          var interval = setInterval(function() {
+            autoPlay();
+            applyVideoSettings();
+          }, 1000);
+
+          setTimeout(function() { clearInterval(interval); }, 30000);
+        })();
       `;
       doc.body.appendChild(script);
 
     } catch (e) {
-      console.warn('[IFRAME-CSS] Cannot inject (cross-origin?):', e);
+      console.warn('[IFRAME-JS] Cannot inject (cross-origin?):', e);
     }
-  }, []);
+  }, [selectedDevice]);
 
 
   const getIframeUrl = (device) => {
