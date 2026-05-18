@@ -1669,6 +1669,11 @@ input {
     grid-template-columns: 1fr;
   }
 
+  .iframe-container {
+    height: 65vh;
+    max-height: 65vh;
+  }
+
   .diagnostics-panel {
     border-left: none;
     border-top: 1px solid var(--panel-border);
