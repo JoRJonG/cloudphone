@@ -71,6 +71,12 @@ export default function StreamViewer({
           width: 100% !important;
           height: 100% !important;
         }
+        /* ควบคุมวิดีโอและแคนวาสให้ไม่ล้น */
+        video, canvas {
+          max-width: 100% !important;
+          max-height: 100vh !important;
+          object-fit: contain !important;
+        }
         /* ซ่อน scrollbar */
         ::-webkit-scrollbar { display: none !important; }
       `;
